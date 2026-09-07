@@ -5,3 +5,10 @@ spring:
     hibernate:
       ddl-auto: create-drop
     open-in-view: false
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: dummy-id
+            client-secret: dummy-secret
