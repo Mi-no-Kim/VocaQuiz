@@ -112,7 +112,7 @@ docs/02-ARCHITECTURE.md §5.4, docs/01-PRD.md §8 을 읽어라.
 브라우저에서 유튜브 URL을 붙여넣어 곡 하나를 끝까지 등록하고 목록에서 확인한다.
 ```
 
-### P1-4. 관리자 — 구간 찍기 화면  ★ 가장 어려운 화면 ★
+### P1-4. 관리자 — 구간 찍기 화면 ★ 가장 어려운 화면 ★
 
 ```
 [맥락]
@@ -156,7 +156,7 @@ docs/00-DECISIONS.md D-017, D-020, D-024, D-045 와 docs/04-SCHEMA.md §2 를 �
 [완료] segment 테이블에 60~90행이 있다.
 ```
 
-### P1-6. 게임 도메인 + QuizType 계약  ★ 설계의 핵심 ★
+### P1-6. 게임 도메인 + QuizType 계약 ★ 설계의 핵심 ★
 
 ```
 [맥락]
@@ -281,12 +281,14 @@ docs/01-PRD.md §8, docs/02-ARCHITECTURE.md §5.1, §5.2 를 읽어라.
 ## Phase 2 — 배포 + 데일리
 
 ### P2-1. Flyway 전환
+
 ```
 [작업] ddl-auto 를 validate 로 바꾸고 현재 스키마를 V1__init.sql 로. 운영 프로파일에 PostgreSQL.
 [완료] 빈 PostgreSQL 에 prod 프로파일로 기동하면 스키마가 생성되고 앱이 뜬다.
 ```
 
 ### P2-2. 배포
+
 ```
 [작업] {Fly.io / Railway / Oracle Cloud 중 고른 것}. 프론트는 Gradle 빌드 시
        npm run build 결과를 src/main/resources/static 으로 복사해 통합 배포.
@@ -295,6 +297,7 @@ docs/01-PRD.md §8, docs/02-ARCHITECTURE.md §5.1, §5.2 를 읽어라.
 ```
 
 ### P2-3. 데일리
+
 ```
 [작업] daily 도메인. PRD §3.6.
   - 날짜(KST) 시드로 QuestionPicker 호출 → 전 유저 동일 문제
@@ -335,6 +338,7 @@ docs/01-PRD.md §8, docs/02-ARCHITECTURE.md §5.1, §5.2 를 읽어라.
 ```
 
 ### P3-2. SCENE 유형 + 장면 구간
+
 ```
 [작업]
 - 관리자 구간 찍기에 kind=SCENE 지원 (end_sec 없이 한 점, scene_purpose 입력)
@@ -345,6 +349,7 @@ docs/01-PRD.md §8, docs/02-ARCHITECTURE.md §5.1, §5.2 를 읽어라.
 ```
 
 ### P3-3. 범위지정 필터
+
 ```
 [작업] POST /games 의 filter 를 동작시킨다 (PRD §3.7, 04-SCHEMA.md §6).
   프로듀서 / 보컬 / 연도 / 가사 언어(D-044) / 구조 태그 / 인기도
@@ -355,6 +360,7 @@ docs/01-PRD.md §8, docs/02-ARCHITECTURE.md §5.1, §5.2 를 읽어라.
 ```
 
 ### P3-4. 채널 감시 파이프라인
+
 ```
 [맥락] docs/02-ARCHITECTURE.md §10, D-008, D-011, D-022, D-031, D-034 를 읽어라.
 
@@ -378,6 +384,7 @@ watch=true 인 채널에 새 영상이 올라오면 검수 대기열에 뜨고, 
 ```
 
 ### P3-5. vocaloard 스크래퍼
+
 ```
 [작업] VocaloardScraper — 랭킹 페이지에서 제목/프로듀서/보컬/videoId 파싱.
        보컬 정보를 song_vocal 에 채운다 (D-035: 보컬의 유일한 출처).
@@ -391,6 +398,7 @@ watch=true 인 채널에 새 영상이 올라오면 검수 대기열에 뜨고, 
 ## Phase 4 — 멀티플레이
 
 ### P4-1. 방 생성/입장 (게임 없이)
+
 ```
 [작업] 설계 문서 §11 대로 room 도메인. 인메모리 ConcurrentHashMap.
        STOMP 설정 + join → MEMBER_JOINED / MEMBER_LEFT 브로드캐스트만.
@@ -399,6 +407,7 @@ watch=true 인 채널에 새 영상이 올라오면 검수 대기열에 뜨고, 
 ```
 
 ### P4-2. 라운드 진행 + 채점
+
 ```
 [작업] §11.1 상태 머신. ROUND_STARTED(deadlineAt=서버 절대 시각), guess 처리,
        PRD §3.3 멀티 공식, 타임아웃 스케줄러, ROUND_ENDED / GAME_ENDED.
@@ -475,6 +484,7 @@ docs/02-ARCHITECTURE.md §4 (계약, 레지스트리, §4.3 검증 표) 를 읽�
 ## 막혔을 때
 
 ### 버그
+
 ```
 [증상] {기대값과 실제값}
 [재현] {어떤 요청/조작}
@@ -485,6 +495,7 @@ docs/02-ARCHITECTURE.md §4 (계약, 레지스트리, §4.3 검증 표) 를 읽�
 ```
 
 ### 설계가 흔들릴 때
+
 ```
 docs/00-DECISIONS.md 의 {D-번호} 를 다시 검토하고 싶다.
 지금 {이런 상황}을 만났는데 이 결정으로는 {이런 문제}가 생긴다.
@@ -494,6 +505,7 @@ docs/00-DECISIONS.md 의 {D-번호} 를 다시 검토하고 싶다.
 ```
 
 ### 코드가 커졌을 때
+
 ```
 {파일 경로}를 읽어라.
 하는 일을 유지하면서 절반 길이로 줄일 수 있는지 검토해라.

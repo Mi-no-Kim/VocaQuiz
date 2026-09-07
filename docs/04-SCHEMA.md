@@ -9,24 +9,29 @@
 
 ## 1. 카탈로그
 
-### language  ← D-036
+### language ← D-036
+
 ```
 id      smallint  PK
 code    varchar(10)  UNIQUE NOT NULL    KO | EN | JA | …
 name    varchar(50)  NOT NULL
 ```
+
 - 언어 추가가 **스키마 변경이 아니라 행 추가**가 된다 (D-036).
 - 곡 이름(D-040)과 보컬 이름(D-041)이 이 테이블을 공유한다.
 
-### producer  ← D-013
+### producer ← D-013
+
 ```
 id          bigint  PK
 name        varchar(100)  NOT NULL    원어 표기. wowaka, DECO*27
 created_at  timestamp
 ```
+
 - **언어별 이름을 두지 않는다** (D-013). 보컬과 다르게 가는 이유는 D-041에 적혀 있다.
 
-### vocal / vocal_name / song_vocal  ← D-037, D-041
+### vocal / vocal_name / song_vocal ← D-037, D-041
+
 ```
 vocal
   id          bigint  PK
@@ -46,10 +51,12 @@ song_vocal
   vocal_id  bigint  FK → vocal
   PK (song_id, vocal_id)
 ```
+
 - 듀엣·합창곡 때문에 다대다 (D-037).
 - 데이터 출처는 vocaloard (D-035) — YouTube Data API는 보컬을 알려주지 않는다.
 
-### channel  ← D-008, D-031, D-034
+### channel ← D-008, D-031, D-034
+
 ```
 id                        bigint  PK
 youtube_channel_id        varchar(64)  UNIQUE NOT NULL    UCxxxx
@@ -61,11 +68,13 @@ last_video_published_at   timestamp  NULL     RSS 폴링 워터마크
 last_checked_at           timestamp  NULL
 created_at                timestamp
 ```
+
 - 곡 등록 시 자동 기록되지만 `watch`는 사람이 켠다 (D-031).
 - `uploads_playlist_id`가 있으면 `playlistItems.list`로 전량 페이징이 가능하다 (D-034).
   다만 전량을 통째로 넣지는 않는다 (D-039).
 
-### song  ← D-006, D-008, D-036, D-040, D-044
+### song ← D-006, D-008, D-036, D-040, D-044
+
 ```
 id                     bigint  PK
 original_language_id   smallint  FK → language  NOT NULL   ← 제목이 어느 언어인지 (D-040)
@@ -75,19 +84,22 @@ search_keywords        text  NOT NULL           ← 파생 컬럼. song_name 저
 created_at, updated_at
 INDEX (lyrics_language_id)
 ```
+
 - **제목 컬럼이 하나도 없다.** 전부 `song_name` 행이다 (D-040).
 - **언어 컬럼이 두 개인 이유 (D-044):**
 
-  | 컬럼 | 의미 | 쓰이는 곳 |
-  |---|---|---|
+  | 컬럼                   | 의미            | 쓰이는 곳                 |
+  | ---------------------- | --------------- | ------------------------- |
   | `original_language_id` | **제목**의 원어 | 표시 시 원제 병기 (D-007) |
-  | `lyrics_language_id` | **가사**의 언어 | 범위지정 필터 축 (D-044) |
+  | `lyrics_language_id`   | **가사**의 언어 | 범위지정 필터 축 (D-044)  |
 
   보통 같은 값이지만 다를 수 있다 (영어 제목의 일본어 곡 등).
   가사 언어 필터는 유명곡 일부가 잘려나가는 대신 난이도 일관성을 얻는 의도된 교환이다.
+
 - **`view_count` 컬럼 없음** — 조회수는 영상 단위이므로 `video`에 둔다.
 
-### song_name  ← D-040
+### song_name ← D-040
+
 ```
 id           bigint  PK
 song_id      bigint    FK → song  NOT NULL
@@ -100,6 +112,7 @@ UNIQUE (song_id, language_id, name)
 UNIQUE (song_id, language_id) WHERE is_primary   ← 언어당 대표 이름 1개
 INDEX (normalized)
 ```
+
 - `is_primary = true` → 그 언어의 대표 표시 제목
 - `is_primary = false` → 별칭 (약칭, 로마자, 통용 표기)
 - **`song_alias` 테이블은 없앴다** (D-040). 정규화 로직이 한 곳에만 존재한다.
@@ -107,14 +120,16 @@ INDEX (normalized)
 - `search_keywords`(파생)는 이 테이블의 `normalized`를 이어붙인 것.
   자동완성 API가 그것만 내려주면 되므로 조회 시 join이 없다.
 
-### song_producer  ← D-013
+### song_producer ← D-013
+
 ```
 song_id      bigint  FK → song
 producer_id  bigint  FK → producer
 PK (song_id, producer_id)
 ```
 
-### video  ← D-006, D-010, D-034
+### video ← D-006, D-010, D-034
+
 ```
 id                bigint  PK
 song_id           bigint  FK → song  NOT NULL
@@ -130,6 +145,7 @@ published_at      timestamp  NULL
 created_at        timestamp
 INDEX (song_id)
 ```
+
 - `duration_sec`가 **NOT NULL이 되었다.** D-034로 서버가 직접 확보하므로
   클라이언트 `getDuration()` 보고에 의존하지 않는다.
 - `view_count`는 하루 1회 배치로 갱신한다 (`videos.list`, id 50개당 1 unit).
@@ -137,7 +153,8 @@ INDEX (song_id)
 
 ## 2. 출제 데이터
 
-### segment  ← D-017, D-020, D-024, D-045
+### segment ← D-017, D-020, D-024, D-045
+
 **이 프로젝트에서 가장 중요한 테이블.** 여기 행이 없으면 그 곡은 출제되지 않는다 (D-017).
 
 ```
@@ -161,9 +178,9 @@ INDEX (kind, structure_tag)
 
 **JSON을 쓰는 곳과 안 쓰는 곳의 기준 (D-045):**
 
-| 대상 | 저장 | 이유 |
-|---|---|---|
-| `segment` 속성 | **컬럼** | 유한하고 예측 가능 |
+| 대상                         | 저장     | 이유                                       |
+| ---------------------------- | -------- | ------------------------------------------ |
+| `segment` 속성               | **컬럼** | 유한하고 예측 가능                         |
 | `round.payload` / `progress` | **JSON** | 퀴즈 유형마다 다르고 무한히 늘어남 (D-005) |
 
 > **"유한하고 예측 가능하면 컬럼, 무한하고 유형마다 다르면 JSON."**
@@ -172,7 +189,8 @@ INDEX (kind, structure_tag)
 
 ## 3. 자동 파이프라인
 
-### ingest_item  ← D-008, D-011, D-022
+### ingest_item ← D-008, D-011, D-022
+
 채널 RSS에서 발견된 신규 영상의 **검수 대기열**.
 
 ```
@@ -191,6 +209,7 @@ INDEX (status, created_at)
 ```
 
 `ai_verdict` 예시 — **AI는 후보만 제시하고 판단하지 않는다 (D-011):**
+
 ```jsonc
 {
   "isSong": true,
@@ -200,7 +219,7 @@ INDEX (status, created_at)
   "titleEn": "Senbonzakura",
   "producerGuess": "黒うさP",
   "similarSongIds": [42, 88],
-  "reason": "제목이 기존 곡 #42와 유사"
+  "reason": "제목이 기존 곡 #42와 유사",
 }
 ```
 
@@ -211,7 +230,8 @@ INDEX (status, created_at)
 
 ## 4. 사용자 / 인증
 
-### app_user  ← D-032
+### app_user ← D-032
+
 ```
 id                bigint  PK
 provider          varchar(20)  NOT NULL    GOOGLE
@@ -221,6 +241,7 @@ role              varchar(20)  NOT NULL DEFAULT 'USER'    USER | ADMIN
 created_at        timestamp
 UNIQUE (provider, provider_user_id)
 ```
+
 - `/admin/**`은 `role = ADMIN`만 (D-032).
 - 게임 플레이는 로그인 없이 가능. Phase 2 데일리에서만 필수가 된다.
 
@@ -228,7 +249,8 @@ UNIQUE (provider, provider_user_id)
 
 ## 5. 게임
 
-### game  ← D-005
+### game ← D-005
+
 ```
 id            uuid  PK
 mode          varchar(20)  NOT NULL    DAILY | RANDOM | CUSTOM
@@ -240,7 +262,8 @@ created_at, finished_at
 INDEX (owner_key, created_at)
 ```
 
-### round  ← D-005, D-018, D-023
+### round ← D-005, D-018, D-023
+
 ```
 id               bigint  PK
 game_id          uuid  FK → game  NOT NULL
@@ -256,6 +279,7 @@ UNIQUE (game_id, round_no)
 ```
 
 `payload` / `progress` 예시:
+
 ```jsonc
 // 구간 퀴즈 — 통째로 한 번 재생 (D-018)
 payload  {"songId":42,"segmentId":301,"videoId":"abc","startSec":47.0,"endSec":59.0}
@@ -272,6 +296,7 @@ progress {"stage":2}
   힌트 콘텐츠는 이미 가진 메타데이터라 저장할 것이 없기 때문.
 
 ### attempt
+
 ```
 id          bigint  PK
 round_id    bigint  FK → round  NOT NULL
@@ -301,10 +326,12 @@ WHERE s.status = 'PUBLISHED'
                WHERE sv.song_id = s.id AND sv.vocal_id IN (:vocalIds))]         -- D-037
   [AND s.lyrics_language_id IN (:lyricsLanguageIds)]                            -- D-044
 ```
+
 → 셔플 후 N곡 선택 (게임 내 중복 방지는 여기서, D-020)
 → 곡마다 영상 랜덤 → 그 영상의 구간 랜덤
 
 **자동완성 목록** (D-007, D-040) — join 없음:
+
 ```sql
 SELECT s.id, s.search_keywords,
        (SELECT name FROM song_name
@@ -313,19 +340,20 @@ SELECT s.id, s.search_keywords,
         WHERE song_id = s.id AND language_id = s.original_language_id AND is_primary) AS original
 FROM song s WHERE s.status = 'PUBLISHED'
 ```
+
 → 앱 시작 시 한 번 받아 캐시. 표시는 `display (original)`, 검색은 `search_keywords`.
 
 ## 7. 이 스키마에 **없는** 것 (의도적)
 
-| 없는 것 | 근거 |
-|---|---|
-| `song.view_count` | 조회수는 영상 단위 → `video.view_count` (D-034) |
-| `song.video_id` | D-006 — 영상은 1:N |
-| `song_alias` 테이블 | D-040 — `song_name`으로 통합 |
-| `song.title_ko` / `title_en` | D-040 — `song_name` 행으로 |
-| `producer.name_ko` | D-013 — 원어 표기 하나만 (보컬과 다름, 근거는 D-041) |
-| `round.hint_level` | D-018 — 점진 방식은 인트로 퀴즈 전용 |
-| 힌트 콘텐츠 테이블 | D-029 — 이미 가진 메타데이터만 쓴다 |
-| `segment.attributes` JSON | D-045 — 속성이 유한하므로 컬럼이 맞다 |
-| 장면 이미지 저장소 | D-042 — seek 방식을 먼저 만들고 보류 |
-| `search.list` 사용 | D-034 — 호출당 100 units. 코드 어디에도 쓰지 않는다 |
+| 없는 것                      | 근거                                                 |
+| ---------------------------- | ---------------------------------------------------- |
+| `song.view_count`            | 조회수는 영상 단위 → `video.view_count` (D-034)      |
+| `song.video_id`              | D-006 — 영상은 1:N                                   |
+| `song_alias` 테이블          | D-040 — `song_name`으로 통합                         |
+| `song.title_ko` / `title_en` | D-040 — `song_name` 행으로                           |
+| `producer.name_ko`           | D-013 — 원어 표기 하나만 (보컬과 다름, 근거는 D-041) |
+| `round.hint_level`           | D-018 — 점진 방식은 인트로 퀴즈 전용                 |
+| 힌트 콘텐츠 테이블           | D-029 — 이미 가진 메타데이터만 쓴다                  |
+| `segment.attributes` JSON    | D-045 — 속성이 유한하므로 컬럼이 맞다                |
+| 장면 이미지 저장소           | D-042 — seek 방식을 먼저 만들고 보류                 |
+| `search.list` 사용           | D-034 — 호출당 100 units. 코드 어디에도 쓰지 않는다  |

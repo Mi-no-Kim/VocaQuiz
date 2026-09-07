@@ -8,19 +8,19 @@
 
 ## 1. 기술 스택
 
-| 영역 | 선택 | 근거 |
-|---|---|---|
-| 언어/런타임 | Java 21 | 가상 스레드, record, pattern matching |
-| 프레임워크 | Spring Boot 3.x | 익숙함이 곧 속도 |
-| 영속성 | Spring Data JPA (Hibernate) | 기존 경험 |
-| DB | 개발 H2 → 운영 PostgreSQL | 개발은 마찰 최소 |
-| 마이그레이션 | Flyway | Phase 2부터. Phase 1은 `create-drop` |
-| 인증 | Spring Security OAuth2 Client (Google) | **Phase 1부터** (D-032) |
-| 실시간 | Spring WebSocket + STOMP | Phase 4 (D-004) |
-| 프론트 | React 18 + TypeScript + Vite | D-003 |
-| UI 킷 | Mantine 또는 shadcn/ui 중 **하나** | CSS를 직접 쓰지 않기 위해 |
-| 미디어 | YouTube IFrame Player API | D-001 |
-| 메타데이터 | YouTube Data API v3 | D-034 |
+| 영역         | 선택                                   | 근거                                  |
+| ------------ | -------------------------------------- | ------------------------------------- |
+| 언어/런타임  | Java 21                                | 가상 스레드, record, pattern matching |
+| 프레임워크   | Spring Boot 3.x                        | 익숙함이 곧 속도                      |
+| 영속성       | Spring Data JPA (Hibernate)            | 기존 경험                             |
+| DB           | 개발 H2 → 운영 PostgreSQL              | 개발은 마찰 최소                      |
+| 마이그레이션 | Flyway                                 | Phase 2부터. Phase 1은 `create-drop`  |
+| 인증         | Spring Security OAuth2 Client (Google) | **Phase 1부터** (D-032)               |
+| 실시간       | Spring WebSocket + STOMP               | Phase 4 (D-004)                       |
+| 프론트       | React 18 + TypeScript + Vite           | D-003                                 |
+| UI 킷        | Mantine 또는 shadcn/ui 중 **하나**     | CSS를 직접 쓰지 않기 위해             |
+| 미디어       | YouTube IFrame Player API              | D-001                                 |
+| 메타데이터   | YouTube Data API v3                    | D-034                                 |
 
 **의도적으로 안 쓰는 것:** Redis(Phase 4 전), Kafka, Elasticsearch, MSA, 상태관리 라이브러리.
 넣을 자리는 §11에 표시해 뒀다.
@@ -72,6 +72,7 @@ com.vocaquiz
 ```
 
 **규칙:**
+
 - 다른 도메인 패키지의 `domain`/`repository`를 직접 참조하지 않는다. `service`를 통한다.
 - `api`의 DTO는 절대 엔티티를 그대로 노출하지 않는다.
 - **`game/quiz/types/` 밖의 어떤 코드도 특정 퀴즈 유형의 이름을 알아서는 안 된다.**
@@ -158,9 +159,11 @@ public class QuizTypeRegistry {
     }
 }
 ```
+
 → `@Component`를 단 구현체를 만들면 **등록 코드조차 필요 없다.**
 
 `RoundService`는 위임만 한다:
+
 ```java
 public GuessResponse guess(UUID gameId, JsonNode answer, String ownerKey) {
     Round round = loadCurrentRound(gameId, ownerKey);       // 권한 + 상태 검증
@@ -177,21 +180,23 @@ public GuessResponse guess(UUID gameId, JsonNode answer, String ownerKey) {
     return GuessResponse.continued(r, type.view(round));
 }
 ```
+
 **이 메서드에 `if (quizType == ...)` 분기가 생기면 설계가 무너진 것이다.** 리뷰 1번 항목.
 
 ### 4.3 계약 검증 — 후보 유형이 들어가는가
 
-| 유형 | songs | segmentKind | payload | view | answer | 채점 |
-|---|---|---|---|---|---|---|
-| `AUDIO_SEGMENT` | 1 | AUDIO | songId, videoId, start, end | videoId, start, end | `{songId}` | 유형이 정함 |
-| `INTRO_GUESS` | 1 | — (0초 고정) | songId, videoId | videoId, playSec | `{songId}` | 6단계 감점 |
-| `SCENE_*` | 1 | SCENE | songId, videoId, atSec | videoId, atSec, mask | `{songId}` | 유형이 정함 |
-| `VIEW_BATTLE` | 2 | — | aId, bId, answer | a{}, b{} | `{choice:"A"}` | SINGLE_SHOT |
-| `LYRIC_BLANK` | 1 | — | songId, line, blank | lineWithBlank | `{text}` | 유형 내부 문자열 비교 |
-| `PRODUCER_GUESS` | 1 | AUDIO | songId, producerId | videoId, start, end, choices | `{producerId}` | SINGLE_SHOT |
-| `RELEASE_ORDER` | 3 | — | songIds, order | songs[] | `{order:[...]}` | 부분 점수 |
+| 유형             | songs | segmentKind  | payload                     | view                         | answer          | 채점                  |
+| ---------------- | ----- | ------------ | --------------------------- | ---------------------------- | --------------- | --------------------- |
+| `AUDIO_SEGMENT`  | 1     | AUDIO        | songId, videoId, start, end | videoId, start, end          | `{songId}`      | 유형이 정함           |
+| `INTRO_GUESS`    | 1     | — (0초 고정) | songId, videoId             | videoId, playSec             | `{songId}`      | 6단계 감점            |
+| `SCENE_*`        | 1     | SCENE        | songId, videoId, atSec      | videoId, atSec, mask         | `{songId}`      | 유형이 정함           |
+| `VIEW_BATTLE`    | 2     | —            | aId, bId, answer            | a{}, b{}                     | `{choice:"A"}`  | SINGLE_SHOT           |
+| `LYRIC_BLANK`    | 1     | —            | songId, line, blank         | lineWithBlank                | `{text}`        | 유형 내부 문자열 비교 |
+| `PRODUCER_GUESS` | 1     | AUDIO        | songId, producerId          | videoId, start, end, choices | `{producerId}`  | SINGLE_SHOT           |
+| `RELEASE_ORDER`  | 3     | —            | songIds, order              | songs[]                      | `{order:[...]}` | 부분 점수             |
 
 **7개 전부 계약 안에 들어간다.** 특히:
+
 - `INTRO_GUESS`는 구간이 필요 없다 → `requiredSegmentKind()`가 null을 반환한다
 - `LYRIC_BLANK`는 자유 텍스트 → `judge()` 안에서만 문자열 비교. **API·스키마 변경 없음**
 - `VIEW_BATTLE`은 곡 2개 → `songsPerRound()=2`
@@ -201,6 +206,7 @@ public GuessResponse guess(UUID gameId, JsonNode answer, String ownerKey) {
 ### 4.4 이 추상화가 과설계가 아닌 이유
 
 `CLAUDE.md`는 "구현체 하나뿐인 인터페이스"를 금지한다. `QuizType`은 **명시적 예외**다:
+
 - 두 번째·세 번째 구현체가 Phase 3에 **확정**되어 있다 (D-018, D-026)
 - 나중에 도입하는 비용이 크다: 스키마 마이그레이션 + API 응답 형태 변경 + 프론트 전면 수정
 - 지금 도입하는 비용은 작다: Phase 1에 약 2~3시간
@@ -223,6 +229,7 @@ GET /api/v1/songs/autocomplete?lang=ko
       "original": "千本桜",
       "keywords": "senbonzakura 천본앵 千本桜 센보자쿠라" }, ... ]
 ```
+
 - **전체 곡을 한 번에 내려준다.** 수천 곡이어도 gzip 후 수십 KB. 서버 왕복 없이 프론트에서 필터링.
 - 정답이 새지 않는다 — 전체 목록이라 어떤 곡이 문제인지 알 수 없다.
 - 표시는 `display (original)` (D-007), 검색은 `keywords` (전 언어 매칭).
@@ -266,6 +273,7 @@ GET /api/v1/games/{gameId}/result
 ```
 
 **봉투 규칙:**
+
 - 컨트롤러·서비스는 봉투 **안을 절대 들여다보지 않는다.** `QuizType` 구현체만 안다.
 - 프론트도 마찬가지 — 게임 화면은 `quizType`으로 렌더러를 고르고 `view`를 통째로 넘긴다.
 - 유형이 10개가 되어도 컨트롤러 코드는 한 줄도 안 늘어난다.
@@ -287,6 +295,7 @@ GET    /api/v1/admin/videos/{id}/segments
 POST   /api/v1/admin/videos/{id}/segments   { kind, startSec, endSec, structureTag }
 DELETE /api/v1/admin/segments/{id}
 ```
+
 - 전부 `role = ADMIN`만 (D-032).
 
 ---
@@ -333,6 +342,7 @@ List<RoundMaterial> pick(GameFilter f, QuizType t, int rounds, long seed) {
     return build(songIds.subList(0, need), t);
 }
 ```
+
 - **`ORDER BY RANDOM()`을 쓰지 않는다.** 중복 배제와 데일리 재현성을 동시에 못 준다.
 - `findPlayableIds`는 `04-SCHEMA.md` §6의 쿼리다. 구간이 없는 곡은 후보에 안 들어온다 (D-017).
 
@@ -344,6 +354,7 @@ List<RoundMaterial> pick(GameFilter f, QuizType t, int rounds, long seed) {
 
 곡 이름을 묻는 유형은 자유 텍스트를 받지 않고 **자동완성에서 고른 `songId`**를 받는다.
 그 유형들의 `judge()`는 이렇게 끝난다:
+
 ```java
 boolean correct = payload.songId() == answer.get("songId").asLong();
 ```
@@ -357,12 +368,14 @@ API 스펙 변경 없음, 스키마 변경 없음, 다른 유형에 영향 없�
 **문자열 매칭의 고통이 유형 하나에 격리된다** — 봉투 설계의 실질적 값어치.
 
 ### TextNormalizer
+
 ```
 1. NFKC 정규화
 2. 소문자화
 3. 공백·기호(・ー〜! ? , . / -) 제거
 4. 가타카나 → 히라가나 통일
 ```
+
 `song_name.normalized`와 `song.search_keywords`가 이걸 쓴다.
 `catalog/service`에 둔다 — 자동완성과 미래의 `LYRIC_BLANK`가 함께 쓴다.
 
@@ -377,12 +390,12 @@ API 스펙 변경 없음, 스키마 변경 없음, 다른 유형에 영향 없�
 
 하루 **10,000 units.**
 
-| 메서드 | 비용 | 한 번에 | 용도 |
-|---|---|---|---|
-| `videos.list` | 1 | id 50개 | 제목·길이·조회수·게시일·채널 |
-| `playlistItems.list` | 1 | 50개 | uploads 재생목록 페이징 |
-| `channels.list` | 1 | id 50개 | `uploads_playlist_id` 획득 |
-| `search.list` | **100** | — | **쓰지 않는다** |
+| 메서드               | 비용    | 한 번에 | 용도                         |
+| -------------------- | ------- | ------- | ---------------------------- |
+| `videos.list`        | 1       | id 50개 | 제목·길이·조회수·게시일·채널 |
+| `playlistItems.list` | 1       | 50개    | uploads 재생목록 페이징      |
+| `channels.list`      | 1       | id 50개 | `uploads_playlist_id` 획득   |
+| `search.list`        | **100** | —       | **쓰지 않는다**              |
 
 > **`search.list`를 코드 어디에도 쓰지 않는다.**
 > `videos.list`가 그것을 대체하는 게 아니다 — 하는 일이 다르다 (D-043).
@@ -391,21 +404,21 @@ API 스펙 변경 없음, 스키마 변경 없음, 다른 유형에 영향 없�
 
 ### 8.2 쿼터를 쓰지 않는 수단 (병행)
 
-| 수단 | 얻는 것 |
-|---|---|
+| 수단                                        | 얻는 것                                |
+| ------------------------------------------- | -------------------------------------- |
 | `youtube.com/feeds/videos.xml?channel_id=…` | 채널 최근 15개 (videoId, 제목, 게시일) |
-| `youtube.com/oembed?url=…` | 제목, 채널명, 썸네일 |
-| `img.youtube.com/vi/{id}/…` | 썸네일 이미지 |
+| `youtube.com/oembed?url=…`                  | 제목, 채널명, 썸네일                   |
+| `img.youtube.com/vi/{id}/…`                 | 썸네일 이미지                          |
 
 **최적 조합: 신규 감지는 RSS(공짜, 자주) → 상세는 Data API(정확, 배치).**
 
 ### 8.3 얻을 수 없는 것
 
-| 원하는 것 | 이유 | 대응 |
-|---|---|---|
-| most-replayed / 히트맵 | 공식 API에 엔드포인트 없음 (D-015) | 쓰지 않는다 |
-| 무음 구간 | 오디오 파형을 안 준다 (D-016) | 사람이 구간을 찍는다 (D-017) |
-| 임의 시점 프레임 | 영상 다운로드 필요 → D-001 위반 | seek 후 정지 (§9) |
+| 원하는 것              | 이유                               | 대응                         |
+| ---------------------- | ---------------------------------- | ---------------------------- |
+| most-replayed / 히트맵 | 공식 API에 엔드포인트 없음 (D-015) | 쓰지 않는다                  |
+| 무음 구간              | 오디오 파형을 안 준다 (D-016)      | 사람이 구간을 찍는다 (D-017) |
+| 임의 시점 프레임       | 영상 다운로드 필요 → D-001 위반    | seek 후 정지 (§9)            |
 
 ### 8.4 배치
 
@@ -414,6 +427,7 @@ API 스펙 변경 없음, 스키마 변경 없음, 다른 유형에 영향 없�
 채널 RSS 폴링   @Scheduled  6시간마다  쿼터 0
 vocaloard      @Scheduled  하루 1~3회  D-047. User-Agent에 연락처 명시
 ```
+
 **게임 요청 시점에 외부 API를 호출하지 않는다.**
 
 ---
@@ -423,21 +437,25 @@ vocaloard      @Scheduled  하루 1~3회  D-047. User-Agent에 연락처 명시
 **서버는 이미지를 저장하지 않는다.** `{videoId, atSec}`만 저장하고 플레이어를 seek 후 정지한다.
 
 ### 정밀도
+
 공식 문서: 플레이어는 **"해당 시각 직전의 가장 가까운 키프레임으로 이동한다.
 단 그 구간이 이미 다운로드된 경우는 예외."** 키프레임 간격은 통상 2~5초.
 
 **우회 패턴:**
+
 ```
 seekTo(t - 2) → 음소거 재생으로 버퍼 확보 → seekTo(t) → pauseVideo()
 ```
+
 프레임 단위 보장은 불가. 실질 오차 ±0.1초 — 게임에는 충분하다.
 
 ### 불가능한 경로 (시도하지 말 것)
-| 방법 | 왜 |
-|---|---|
-| `<canvas>`로 iframe 캡처 | cross-origin, tainted canvas |
-| 서버 ffmpeg 프레임 추출 | 영상 다운로드 → D-001 위반 |
-| 임의 시점 썸네일 URL | 유튜브는 대표 + 자동생성 3장만 제공 |
+
+| 방법                     | 왜                                  |
+| ------------------------ | ----------------------------------- |
+| `<canvas>`로 iframe 캡처 | cross-origin, tainted canvas        |
+| 서버 ffmpeg 프레임 추출  | 영상 다운로드 → D-001 위반          |
+| 임의 시점 썸네일 URL     | 유튜브는 대표 + 자동생성 3장만 제공 |
 
 - 모자이크는 플레이어 위 CSS 오버레이 (`filter: blur()` 또는 저해상도 확대).
 - **이미지 저장 방식은 D-042로 보류.** seek 방식 품질이 부족할 때 O-28로 돌아온다.
@@ -470,6 +488,7 @@ channel (watch = true)                       ← 사람이 켠다 (D-031)
 ## 11. 멀티플레이 (Phase 4)
 
 ### 11.1 방 상태 머신
+
 ```
        ┌─────────┐  host:start  ┌──────────────┐
        │ WAITING │─────────────>│ ROUND_PLAYING│<──┐
@@ -480,15 +499,18 @@ channel (watch = true)                       ← 사람이 켠다 (D-031)
        │FINISHED │<─────────────│ ROUND_REVEAL │───┘
        └─────────┘  마지막 라운드 └──────────────┘
 ```
+
 - **상태 전이는 서버만 한다.** 클라이언트는 정답 제출과 방장의 시작 요청만 보낸다.
 - `ROUND_REVEAL`은 5초 고정.
 
 ### 11.2 저장 위치
+
 **인메모리 `ConcurrentHashMap` + 단일 인스턴스.** 결과만 종료 시 DB에 한 번 저장.
 서버 재시작 시 진행 중 방이 날아간다 — **수용한다.** 20분짜리 세션이다.
 확장 시 Redis Pub/Sub를 넣는다. 그때 `RoomService` 인터페이스만 갈아 끼우게 설계해 둔다.
 
 ### 11.3 STOMP
+
 ```
 연결   /ws                              (SockJS fallback 사용 안 함)
 구독   /topic/rooms/{code}              방 전체
@@ -496,15 +518,16 @@ channel (watch = true)                       ← 사람이 켠다 (D-031)
 발행   /app/rooms/{code}/join|start|guess
 ```
 
-| 이벤트 | payload | 주의 |
-|---|---|---|
-| `MEMBER_JOINED` / `MEMBER_LEFT` | 참가자 목록 | |
-| `ROUND_STARTED` | roundNo, view, deadlineAt | `deadlineAt`은 **서버 절대 시각** |
-| `MEMBER_SOLVED` | nickname, elapsedMs | **곡 정보 절대 미포함** |
-| `ROUND_ENDED` | reveal, 라운드 점수 | |
-| `GAME_ENDED` | 최종 순위 | |
+| 이벤트                          | payload                   | 주의                              |
+| ------------------------------- | ------------------------- | --------------------------------- |
+| `MEMBER_JOINED` / `MEMBER_LEFT` | 참가자 목록               |                                   |
+| `ROUND_STARTED`                 | roundNo, view, deadlineAt | `deadlineAt`은 **서버 절대 시각** |
+| `MEMBER_SOLVED`                 | nickname, elapsedMs       | **곡 정보 절대 미포함**           |
+| `ROUND_ENDED`                   | reveal, 라운드 점수       |                                   |
+| `GAME_ENDED`                    | 최종 순위                 |                                   |
 
 ### 11.4 동시성
+
 - 방 단위 lock으로 상태 변경을 직렬화. 방 사이엔 경합이 없다.
 - **타임아웃 스케줄러와 마지막 정답이 동시에 라운드를 끝내려 한다.**
   `round.status`를 CAS로 확인하고 한 번만 전이시킨다. 이 버그는 반드시 한 번 만난다.
@@ -523,6 +546,7 @@ channel (watch = true)                       ← 사람이 켠다 (D-031)
 - [ ] 데일리를 하루 두 번 시작할 수 있지 않은가? (DB 유니크 제약)
 
 **확장성 체크리스트 (설계 위반 감지):**
+
 - [ ] `game/quiz/types/` 밖에 유형 이름으로 분기하는 `if`/`switch`가 생기지 않았는가?
 - [ ] 새 유형을 추가하며 DB 마이그레이션을 쓰고 있지 않은가?
 - [ ] 새 유형을 추가하며 API 응답 형태를 바꾸고 있지 않은가?
@@ -543,11 +567,11 @@ channel (watch = true)                       ← 사람이 켠다 (D-031)
 
 ## 14. 나중에 넣을 자리
 
-| 넣을 것 | 시점 | 미리 준비할 것 |
-|---|---|---|
-| Redis | 멀티 서버 확장 | `RoomService`를 인터페이스로 |
-| Elasticsearch | 곡 5,000개 초과 + 서버 검색 | `SongCatalogService.search()` 시그니처 |
-| 랭킹 | Phase 2 이후 | `game.total_score` 인덱스 |
-| 한 게임에 여러 유형 섞기 | 유형 3개 이상 | 점수 0..100 정규화가 이미 가능하게 해 둠 |
-| 장면 이미지 저장소 | seek 품질 부족 시 | O-28 |
-| WebSub 푸시 | 배포 후 | 채널 RSS 폴링을 대체 |
+| 넣을 것                  | 시점                        | 미리 준비할 것                           |
+| ------------------------ | --------------------------- | ---------------------------------------- |
+| Redis                    | 멀티 서버 확장              | `RoomService`를 인터페이스로             |
+| Elasticsearch            | 곡 5,000개 초과 + 서버 검색 | `SongCatalogService.search()` 시그니처   |
+| 랭킹                     | Phase 2 이후                | `game.total_score` 인덱스                |
+| 한 게임에 여러 유형 섞기 | 유형 3개 이상               | 점수 0..100 정규화가 이미 가능하게 해 둠 |
+| 장면 이미지 저장소       | seek 품질 부족 시           | O-28                                     |
+| WebSub 푸시              | 배포 후                     | 채널 RSS 폴링을 대체                     |
