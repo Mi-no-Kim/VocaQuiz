@@ -38,3 +38,8 @@ out/
 
 # config
 /config/
+
+# TIL 글은 로컬에만. 작성 규칙과 양식은 추적한다
+/docs/til/*
+!/docs/til/README.md
+!/docs/til/_TEMPLATE.md
