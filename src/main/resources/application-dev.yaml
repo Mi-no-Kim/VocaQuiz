@@ -1,0 +1,9 @@
+spring:
+  config:
+    import: optional:file:./config/local.yaml
+  datasource:
+    url: jdbc:mysql://localhost:3307/vocaquiz
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
