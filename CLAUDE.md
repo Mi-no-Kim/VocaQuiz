@@ -1,6 +1,6 @@
 # CLAUDE.md — VocaQuiz 개발 지침
 
-> **개정 2026-09-05.** D-001~D-047 기준.
+> **개정 2026-09-07.** D-001~D-049 기준.
 
 AI(및 미래의 나)가 이 저장소에서 코드를 쓸 때 따르는 규칙이다.
 개인 전역 지침(간결함, 추측 금지, 외과적 변경, 검증 가능한 목표)에 **더해지는** 프로젝트 규칙.
@@ -149,14 +149,17 @@ docs/03-PROMPTS.md      ← 단계별 실행 프롬프트
 
 ## 4. Git
 
-- `main` — 항상 동작하는 상태. `feat/{짧은-설명}` — 하루 안에 머지.
-- Phase 하나가 끝날 때는 PR을 만들고 자기 리뷰를 한다 (TIL 소재가 된다).
+- `main` — 항상 동작하는 상태. 직접 push 하지 않는다.
+- 브랜치는 `{type}/{이슈번호}-{짧은-설명}`. 예) `feat/12-oauth2-admin-whitelist`
+- 이슈·PR·라벨의 상세 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```
 {type}: {한글 한 줄 요약}
 
 {왜 이렇게 했는지 — 무엇을 했는지가 아니라}
-{관련 결정이 있으면 D-번호}
+
+Decision: D-048
+Closes #12
 ```
 
 type: `feat` `fix` `refactor` `test` `docs` `chore`
@@ -168,11 +171,14 @@ type: `feat` `fix` `refactor` `test` `docs` `chore`
   D-017로 구간이 출제의 전제 조건이 되었는데 QuestionPicker가
   그걸 안 걸러서 payload가 null인 라운드가 생겼다.
 
+  Decision: D-017
+
 나쁨:
   feat: GameService 수정
 ```
 
 - 커밋 단위는 **되돌릴 수 있는 최소 단위**. 파일 20개를 한 번에 커밋하지 않는다.
+  단 squash 병합이므로 `main` 에서 되돌릴 수 있는 최소 단위는 이슈 하나다.
 - 커밋 전 `./gradlew build` 통과 확인.
 
 ---

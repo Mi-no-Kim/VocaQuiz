@@ -1,6 +1,6 @@
 # VocaQuiz — 기술 설계 문서
 
-> **개정 2026-09-05.** `docs/00-DECISIONS.md`(D-001~D-047) 기준.
+> **개정 2026-09-07.** `docs/00-DECISIONS.md`(D-001~D-049) 기준.
 > **테이블 정의는 이 문서에 없다 → `docs/04-SCHEMA.md`.** 중복을 만들지 않기 위해서다.
 > 이 문서는 **결정과 그 이유**, 그리고 코드 구조를 적는다.
 
@@ -8,19 +8,19 @@
 
 ## 1. 기술 스택
 
-| 영역         | 선택                                   | 근거                                  |
-| ------------ | -------------------------------------- | ------------------------------------- |
-| 언어/런타임  | Java 21                                | 가상 스레드, record, pattern matching |
-| 프레임워크   | Spring Boot 3.x                        | 익숙함이 곧 속도                      |
-| 영속성       | Spring Data JPA (Hibernate)            | 기존 경험                             |
-| DB           | 개발 H2 → 운영 PostgreSQL              | 개발은 마찰 최소                      |
-| 마이그레이션 | Flyway                                 | Phase 2부터. Phase 1은 `create-drop`  |
-| 인증         | Spring Security OAuth2 Client (Google) | **Phase 1부터** (D-032)               |
-| 실시간       | Spring WebSocket + STOMP               | Phase 4 (D-004)                       |
-| 프론트       | React 18 + TypeScript + Vite           | D-003                                 |
-| UI 킷        | Mantine 또는 shadcn/ui 중 **하나**     | CSS를 직접 쓰지 않기 위해             |
-| 미디어       | YouTube IFrame Player API              | D-001                                 |
-| 메타데이터   | YouTube Data API v3                    | D-034                                 |
+| 영역         | 선택                                              | 근거                                                             |
+| ------------ | ------------------------------------------------- | ---------------------------------------------------------------- |
+| 언어/런타임  | Java 21                                           | 가상 스레드, record, pattern matching                            |
+| 프레임워크   | Spring Boot **4.1.1** `[개정됨 → D-048]`          | 3.x 였으나 start.spring.io 기본값을 따랐다                       |
+| 영속성       | Spring Data JPA (Hibernate)                       | 기존 경험                                                        |
+| DB           | 개발·운영 **MySQL**, 테스트 H2 `[개정됨 → D-049]` | 숙련도. 이전은 "개발 H2 → 운영 PostgreSQL"                       |
+| 마이그레이션 | Flyway                                            | Phase 2부터. Phase 1은 dev `update` / test `create-drop` (D-049) |
+| 인증         | Spring Security OAuth2 Client (Google)            | **Phase 1부터** (D-032)                                          |
+| 실시간       | Spring WebSocket + STOMP                          | Phase 4 (D-004)                                                  |
+| 프론트       | React 18 + TypeScript + Vite                      | D-003                                                            |
+| UI 킷        | Mantine 또는 shadcn/ui 중 **하나**                | CSS를 직접 쓰지 않기 위해                                        |
+| 미디어       | YouTube IFrame Player API                         | D-001                                                            |
+| 메타데이터   | YouTube Data API v3                               | D-034                                                            |
 
 **의도적으로 안 쓰는 것:** Redis(Phase 4 전), Kafka, Elasticsearch, MSA, 상태관리 라이브러리.
 넣을 자리는 §11에 표시해 뒀다.
@@ -558,7 +558,7 @@ channel (watch = true)                       ← 사람이 켠다 (D-031)
 ## 13. 배포 (Phase 2)
 
 - 백엔드: Fly.io / Railway / Oracle Cloud Free 중 **가장 빨리 뜨는 곳**
-- DB: 관리형 PostgreSQL (Supabase/Neon 무료 티어 가능)
+- DB: 관리형 **MySQL** `[개정됨 → D-049]` (이전: 관리형 PostgreSQL)
 - 프론트: Gradle 빌드 시 `npm run build` 결과를 `src/main/resources/static`으로 복사해 **통합 배포**
   → CORS·쿠키 문제가 사라진다. 1인 개발이라면 통합이 덜 아프다.
 - 환경변수: `YOUTUBE_API_KEY`, `OAUTH_*`, `DB_*`. 하드코딩 금지, `.env`는 `.gitignore`.
