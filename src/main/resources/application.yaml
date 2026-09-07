@@ -10,6 +10,6 @@ spring:
           google:
             client-id: ${OAUTH_GOOGLE_CLIENT_ID:}
             client-secret: ${OAUTH_GOOGLE_CLIENT_SECRET:}
-            
+
 app:
   admin-emails: ${ADMIN_EMAILS:}
