@@ -33,8 +33,12 @@ out/
 /nbdist/
 /.nb-gradle/
 
+### Node (문서 서식 도구) ###
+node_modules/
+
 ### VS Code ###
-.vscode/
+.vscode/*
+!.vscode/settings.json
 
 # config
 /config/

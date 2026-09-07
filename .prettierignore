@@ -1,0 +1,12 @@
+# 빌드 산출물
+build/
+.gradle/
+node_modules/
+
+# 로컬 비밀값
+config/
+
+# 도구가 생성한 파일
+gradle/
+gradlew
+gradlew.bat

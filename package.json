@@ -1,0 +1,13 @@
+{
+  "name": "vocaquiz-tooling",
+  "version": "0.0.0",
+  "private": true,
+  "description": "문서 서식 도구만 담는다. 애플리케이션 의존성이 아니다.",
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "3.9.6"
+  }
+}
