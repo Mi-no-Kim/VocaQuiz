@@ -3,3 +3,6 @@ spring:
     name: vocaquiz
   profiles:
     default: dev
+
+app:
+  admin-emails: ${ADMIN_EMAILS:}
