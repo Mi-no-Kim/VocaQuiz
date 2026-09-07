@@ -1,0 +1,46 @@
+name: 🐞 버그
+description: 예상과 다르게 동작하는 부분.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: expected
+    attributes:
+      label: 예상한 동작
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 실제 동작
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 재현 방법
+      placeholder: |
+        1. '...'로 이동
+        2. '...'를 클릭
+        3. 에러 확인
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 영역
+      options:
+        - 백엔드 API
+        - 관리자 화면
+        - 게임 화면
+        - 빌드 · 설정
+        - 모르겠음
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: 로그 / 스택트레이스
+      render: text
+    validations:
+      required: false

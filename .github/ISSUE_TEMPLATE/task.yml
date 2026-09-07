@@ -1,0 +1,40 @@
+name: 🔧 작업
+description: 03-PROMPTS.md 의 한 단계, 또는 그에 준하는 작업 하나.
+title: "[Task] "
+labels: ["enhancement"]
+body:
+  - type: input
+    id: step
+    attributes:
+      label: 대응하는 단계
+      description: 03-PROMPTS.md 의 단계 번호. 해당 없으면 "없음".
+      placeholder: 예) P1-2
+    validations:
+      required: true
+  - type: textarea
+    id: work
+    attributes:
+      label: 작업
+      description: 무엇을 만드는가.
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: 제약
+      description: 하지 말아야 할 것. 이미 정해진 것은 D-번호로 인용한다.
+      placeholder: |
+        - search.list 를 호출하지 않는다 (D-034)
+        - 유형별 컬럼을 만들지 않는다 (D-005)
+    validations:
+      required: false
+  - type: textarea
+    id: done
+    attributes:
+      label: 완료 기준
+      description: 무엇이 되면 끝인가. 검증 가능한 형태로 적는다.
+      placeholder: |
+        1. gradlew test 통과
+        2. 브라우저에서 ...
+    validations:
+      required: true
