@@ -178,7 +178,7 @@ type: `feat` `fix` `refactor` `test` `docs` `chore`
 ```
 
 - 커밋 단위는 **되돌릴 수 있는 최소 단위**. 파일 20개를 한 번에 커밋하지 않는다.
-  단 squash 병합이므로 `main` 에서 되돌릴 수 있는 최소 단위는 이슈 하나다.
+  단 squash 병합이므로 `main`에서 되돌릴 수 있는 최소 단위는 이슈 하나다.
 - 커밋 전 `./gradlew build` 통과 확인.
 
 ---
@@ -208,6 +208,15 @@ type: `feat` `fix` `refactor` `test` `docs` `chore`
 - "확장성을 위한" 제네릭, 전략 패턴, 이벤트 버스 — 요청받지 않았다면 과설계
 - 발생할 수 없는 케이스의 try-catch
 - 주석으로 코드 설명하기 — 주석은 **왜**를 적을 때만
+- **저장소 상태를 바꾸는 git 명령** — 사람이 지시했을 때만 실행한다.
+  읽기만 하는 명령은 허가 없이 쓴다: `status` · `log` · `diff` · `show` ·
+  `blame` · `branch`(목록) · `ls-files` · `check-ignore` · `rev-parse`.
+  경계가 헷갈리는 것은 **바꾸는 쪽**이다:
+  `checkout <경로>` · `restore` · `stash` · `fetch` · `gc` · `prune`.
+  AI의 몫은 파일을 고치고 무엇이 왜 바뀌었는지 보고하는 데까지다.
+  커밋 단위와 메시지는 제안까지만 한다.
+- **결정을 대신하기** — 선택지와 각각의 비용을 제시하고 멈춘다.
+  "되돌릴 수 있으니까"는 실행해도 되는 근거가 아니다.
 
 ### 5.3 AI가 반드시 해야 하는 것
 
@@ -224,12 +233,12 @@ type: `feat` `fix` `refactor` `test` `docs` `chore`
 
 ```
 1. 01-PRD.md §3.2 카탈로그 표에 한 줄 추가
-2. 02-ARCHITECTURE.md §4.3 검증 표에 payload/view/answer 를 채워 본다
+2. 02-ARCHITECTURE.md §4.3 검증 표에 payload/view/answer를 채워 본다
    → 계약에 안 들어가면 여기서 멈추고 계약을 먼저 고친다
 3. game/quiz/types/XxxQuiz.java   (@Component 하나)
 4. frontend/src/quiz/Xxx.tsx
 5. frontend/src/quiz/registry.ts 한 줄
-6. git diff --stat 으로 그 밖의 파일이 없는지 확인   ← 완료 조건
+6. git diff --stat으로 그 밖의 파일이 없는지 확인   ← 완료 조건
 ```
 
 **3~5번 밖의 파일이 diff에 나타나면 무언가 잘못된 것이다.** 커밋 전에 왜 그런지 설명하라.

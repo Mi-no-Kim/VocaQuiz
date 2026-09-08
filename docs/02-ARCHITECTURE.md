@@ -107,7 +107,7 @@ com.vocaquiz
 ```java
 public interface QuizType {
 
-    /** "AUDIO_SEGMENT" 등. round.quiz_type 에 저장되는 값. */
+    /** "AUDIO_SEGMENT" 등. round.quiz_type에 저장되는 값. */
     String code();
 
     /** 이 유형이 라운드 하나에 필요한 곡 수. (1, 2, 3 …) */
@@ -116,7 +116,7 @@ public interface QuizType {
     /** 이 유형이 쓰는 구간 종류. QuestionPicker가 후보를 거를 때 쓴다. */
     SegmentKind requiredSegmentKind();
 
-    /** 출제. 후보를 받아 payload / progress / primarySongId 를 만든다. */
+    /** 출제. 후보를 받아 payload / progress / primarySongId를 만든다. */
     RoundSeed generate(List<Song> songs, List<Segment> segments);
 
     /** 클라이언트에 내려보낼 것. ★ 정답이 들어가면 안 된다 ★ */
@@ -288,7 +288,7 @@ GET /api/v1/games/{gameId}/result
 
 ```
 POST   /api/v1/admin/songs/preview   { "videoId":"..." }
-       → videos.list 로 제목·길이·조회수·게시일·채널을 받아 초안 반환 (저장 안 함)
+       → videos.list로 제목·길이·조회수·게시일·채널을 받아 초안 반환 (저장 안 함)
 POST   /api/v1/admin/songs           곡 + 이름들 + 프로듀서 + 보컬 + 언어 저장
 GET    /api/v1/admin/songs           목록 (검색, status 필터)
 GET    /api/v1/admin/videos/{id}/segments
@@ -305,7 +305,7 @@ DELETE /api/v1/admin/segments/{id}
 ```
 [클라이언트]                         [서버]
     │ POST /games ─────────────────>  QuizType t = registry.get(quizType)
-    │                                 후보 곡 = 필터 + t.requiredSegmentKind() 로 조회
+    │                                 후보 곡 = 필터 + t.requiredSegmentKind()로 조회
     │                                 필요 곡 수 = rounds × t.songsPerRound()
     │                                 부족하면 400 NOT_ENOUGH_SONGS
     │                                 seed로 셔플 → 곡 배분
@@ -468,7 +468,7 @@ seekTo(t - 2) → 음소거 재생으로 버퍼 확보 → seekTo(t) → pauseVi
 channel (watch = true)                       ← 사람이 켠다 (D-031)
   └ RSS 폴링 (쿼터 0)
       └ 새 videoId → ingest_item (PENDING)
-          └ videos.list 로 상세 (1 unit)
+          └ videos.list로 상세 (1 unit)
               └ AI 판별 → ai_verdict
                   { isSong, confidence, titleKo/En/Original,
                     producerGuess, similarSongIds[], reason }
