@@ -12,6 +12,9 @@
 | 단계         | 이슈                    | `docs/03-PROMPTS.md`의 P1-1 ~ P1-8 |
 | 그 안의 조각 | 하위 이슈 (필요할 때만) |                                    |
 
+마일스톤에는 P단계 이슈만 넣는다. 문서 · 설정 · 프로세스 정리는 마일스톤 없이 둔다.
+마일스톤이 재는 것은 "그 Phase가 얼마나 남았나" 하나뿐이다.
+
 이슈 하나에 문제 하나. 한 이슈가 둘 이상을 담고 있으면 하위 이슈로 나눈다.
 **미리 나누지 않는다.** 한 단계 안에서 길이 길어졌을 때 나눈다.
 
@@ -20,12 +23,12 @@
 
 ## 브랜치
 
-    {type}/{이슈번호}-{짧은-설명}
+    {type}/{이슈번호}/{짧은-설명}
 
-    feat/12-oauth2-admin-whitelist
-    fix/18-round-progress-mutated-on-get
-    docs/21-decision-log-d048
-    chore/9-github-actions-build
+    feat/12/oauth2-admin-whitelist
+    fix/18/round-progress-mutated-on-get
+    docs/21/decision-log-d048
+    chore/9/github-actions-build
 
 type은 커밋 타입과 같은 것을 쓴다: `feat` `fix` `refactor` `test` `docs` `chore`.
 
@@ -77,12 +80,15 @@ Conventional Commits가 뜻을 못 박은 것은 `feat`과 `fix` 둘뿐이고,
 ## PR
 
 - 이슈 하나 = PR 하나가 기본. 본문에 `Closes #N`.
+- 이슈 하나를 PR 여러 개로 나눌 때는 **모든 PR에 `Refs #N`만** 쓰고, 마지막 PR을 병합한 뒤 이슈를 손으로 닫는다.
+  `Closes`를 어느 PR에 붙일지 고르지 않는다 — 병합 순서가 바뀌면 이슈가 먼저 닫힌다.
 - 100줄 안팎이면 커밋을 나눠 담아 PR 하나로. 커지면 나눈다.
   먼저 리팩터링을 기능 변경에서 분리하고, 그다음 계층(수평)이나 기능(수직)으로 자른다.
+  **크기보다 성격이 먼저다.** 실패 모드와 되돌리는 비용이 다른 것은 줄 수가 적어도 나눈다.
 - 방향을 먼저 확인하고 싶으면 Draft로 올린다.
 - **`build`와 `format` 상태 체크가 통과해야 병합된다.** 리뷰 승인은 요구하지 않는다 —
   자기 PR은 자기가 승인할 수 없다. 대신 PR 템플릿의 셀프 리뷰 체크리스트를 리뷰어 자리에 둔다.
-- 병합은 Squash. 이슈 하나가 커밋 하나로 `main`에 남는다.
+- 병합은 Squash. PR 하나가 커밋 하나로 `main`에 남는다.
 - PR 제목은 커밋 제목 규칙을 그대로 따른다. squash 병합에서 PR 제목이 곧 `main`의 커밋 제목이 되기 때문이다. 이슈 번호는 GitHub가 `(#12)`로 붙여준다.
 - **P단계를 끝내는 PR은 `README.md` 진행표를 같은 PR에서 갱신한다.** 마지막 커밋에 넣는다.
   나중에 몰아서 고치면 `main`만 봐서는 어느 단계까지 끝났는지 알 수 없다.
