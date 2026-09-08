@@ -17,6 +17,8 @@ repositories {
 	mavenCentral()
 }
 
+val mockitoAgent: Configuration by configurations.creating
+
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-security")
@@ -35,8 +37,12 @@ dependencies {
 	testCompileOnly("org.projectlombok:lombok")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	testAnnotationProcessor("org.projectlombok:lombok")
+    mockitoAgent("org.mockito:mockito-core") { isTransitive = false }
 }
 
 tasks.withType<Test> {
-	useJUnitPlatform()
+    useJUnitPlatform()
+    jvmArgumentProviders.add(CommandLineArgumentProvider {
+        listOf("-javaagent:${mockitoAgent.asPath}")
+    })
 }
