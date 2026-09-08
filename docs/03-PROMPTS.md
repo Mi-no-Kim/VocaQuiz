@@ -61,29 +61,42 @@ Spring Boot 3.x + Java 21 + Gradle(Kotlin DSL).
 
 ```
 [맥락]
-docs/04-SCHEMA.md §1 전체와 docs/00-DECISIONS.md D-034, D-040, D-043, D-044를 읽어라.
+docs/04-SCHEMA.md §1 전체와 docs/00-DECISIONS.md D-034, D-040, D-043,
+D-050 ~ D-055를 읽어라.
 
 [작업]
-1. 엔티티: Language, Producer, Vocal, VocalName, Song, SongName, SongProducer,
-   SongVocal, Video, Channel  — 04-SCHEMA.md §1 그대로
+1. 엔티티: Language, Producer, Vocal, VocalName, VideoVocal, SongVocal,
+   Channel, ChannelProducer, Song, SongLanguage, SongName, SongNameAnswer,
+   SongCredit, Video, VideoCredit  — 04-SCHEMA.md §1 그대로
 2. catalog/service/TextNormalizer — 설계 문서 §7의 정규화 4단계
-3. SongCatalogService — SongName 저장 시 song.search_keywords를 갱신한다.
-   ★ 이 갱신 경로를 한 곳으로 모아라. 빠뜨리면 자동완성에서 곡이 안 잡힌다 ★
-4. youtube/YoutubeDataClient — videos.list만 구현.
+3. catalog/service/AnswerPatternExpander — song_name.answer_pattern 전개 (D-052)
+   괄호와 파이프만. \( \| \) \\ 이스케이프. 20개 초과면 경고 신호를 반환한다
+4. SongCatalogService — 파생 두 개의 갱신 경로를 각각 한 곳으로 모아라
+   ★ answer_pattern이 바뀌면 song_name_answer를 다시 만든다 (D-052) ★
+   ★ video_vocal이 바뀌고 그 영상이 ORIGINAL이면 song_vocal을 다시 계산한다 (D-050) ★
+5. youtube/YoutubeDataClient — videos.list만 구현.
    id 50개씩 배치. 응답에서 title/duration/viewCount/publishedAt/channelId 추출
-5. Language 시드 데이터 (KO, EN, JA)
+6. Language 시드 데이터 (KO, EN, JA)
 
 [제약]
 - ★ search.list를 호출하는 코드를 절대 만들지 마라 ★ (D-034: 호출당 100 units)
 - playlistItems.list, channels.list는 Phase 3에서 만든다. 지금은 videos.list만.
 - API 키는 환경변수 YOUTUBE_API_KEY. 하드코딩 금지.
 - song에 제목 컬럼을 만들지 마라. 전부 song_name 행이다 (D-040).
-- song.original_language_id와 lyrics_language_id는 서로 다른 컬럼이다 (D-044). 합치지 마라.
+- song에 언어 컬럼을 만들지 마라. 곡의 언어는 song_language다 (D-051).
+  original_language_id는 예외다 — 원제가 어느 언어인지를 가리킨다.
+- song.search_keywords와 song_name.normalized를 만들지 마라. song_name_answer가 대신한다 (D-052).
+- credit.role은 DB varchar + 서버 enum이고 지금은 값 하나만 쓴다 (D-053).
+  역할 목록을 미리 늘리지 마라 (O-32).
+- 원곡 영상의 크레딧을 곡에서 자동으로 상속하지 마라 (D-053).
 
 [완료]
 1) TextNormalizer 단위 테스트: "千本桜" "senbonzakura" "천본앵" 이 각각 정규화된다.
-2) YoutubeDataClient로 videoId 하나를 조회하면 제목·길이·조회수가 나온다.
-3) 곡 하나를 코드로 저장하면 search_keywords에 전 언어 문자열이 들어간다.
+2) AnswerPatternExpander 단위 테스트: (히토|인간|사람)(마니아|매니아)가 6개로 전개되고,
+   \( 는 문자 '(' 로 남는다.
+3) YoutubeDataClient로 videoId 하나를 조회하면 제목·길이·조회수가 나온다.
+4) 곡 하나를 코드로 저장하면 song_name_answer에 전 언어 후보가 들어간다.
+5) ORIGINAL 영상에 video_vocal을 넣으면 song_vocal이 같은 집합이 된다.
 ```
 
 ### P1-3. 관리자 — 곡 등록 · 목록
