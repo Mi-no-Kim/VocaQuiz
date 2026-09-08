@@ -83,15 +83,17 @@ com.vocaquiz
 
 ## 3. 도메인 모델
 
-**→ `docs/04-SCHEMA.md`** (테이블 15개, 컬럼마다 결정 번호 근거 포함)
+**→ `docs/04-SCHEMA.md`** (테이블 21개, 컬럼마다 결정 번호 근거 포함)
 
 여기서는 코드 관점의 요점만 적는다:
 
 - **엔티티에 `@Setter`를 만들지 않는다.** 상태 변경은 의미 있는 메서드로:
   `round.finish(correct, score)`, `round.updateProgress(json)`, `segment.retag(tag)`
 - 연관관계는 기본 `LAZY`. `@ManyToOne(fetch = LAZY)`를 항상 명시.
-- `song.search_keywords`는 파생 컬럼이다. `SongName` 저장 시 `SongCatalogService`가 갱신한다.
+- `song_name_answer`는 파생 테이블이다. `SongName.answer_pattern`이 바뀌면 `SongCatalogService`가 다시 만든다 (D-052).
   **이 갱신을 빠뜨리면 자동완성에서 곡이 안 잡힌다.** 저장 경로를 한 곳으로 모을 것.
+- `song_vocal`도 파생이다. `video_vocal`이 바뀌고 그 영상이 `ORIGINAL`이면 다시 계산한다 (D-050).
+  파생이 둘이므로 각각의 갱신 경로를 한 곳에 모으고, 정합성 점검을 관리자에게 노출한다.
 - `segment.kind`는 **DB varchar + Java enum** (D-045). 알 수 없는 값은 로딩 시 예외.
 - `round.payload`/`progress`만 JSON이다. 기준은 D-045:
   > **유한하고 예측 가능하면 컬럼, 무한하고 유형마다 다르면 JSON.**
@@ -233,6 +235,8 @@ GET /api/v1/songs/autocomplete?lang=ko
 - **전체 곡을 한 번에 내려준다.** 수천 곡이어도 gzip 후 수십 KB. 서버 왕복 없이 프론트에서 필터링.
 - 정답이 새지 않는다 — 전체 목록이라 어떤 곡이 문제인지 알 수 없다.
 - 표시는 `display (original)` (D-007), 검색은 `keywords` (전 언어 매칭).
+- `keywords`는 `song_name_answer`의 전개 결과를 이어붙인 것이다 (D-052).
+  `song.search_keywords` 컬럼은 없앴다.
 - `Cache-Control: public, max-age=3600` + ETag.
 
 ### 5.2 게임
@@ -353,6 +357,7 @@ List<RoundMaterial> pick(GameFilter f, QuizType t, int rounds, long seed) {
 **답안 형태는 `QuizType`이 정한다. 프레임워크는 강제하지 않는다.**
 
 곡 이름을 묻는 유형은 자유 텍스트를 받지 않고 **자동완성에서 고른 `songId`**를 받는다.
+후보 검색은 `song_name_answer`를 본다 (D-052) — 한 곡이 여러 표기로 불려도 같은 `songId`로 모인다.
 그 유형들의 `judge()`는 이렇게 끝난다:
 
 ```java
@@ -376,8 +381,10 @@ API 스펙 변경 없음, 스키마 변경 없음, 다른 유형에 영향 없�
 4. 가타카나 → 히라가나 통일
 ```
 
-`song_name.normalized`와 `song.search_keywords`가 이걸 쓴다.
+`song_name_answer.normalized`가 이걸 쓴다 (D-052).
 `catalog/service`에 둔다 — 자동완성과 미래의 `LYRIC_BLANK`가 함께 쓴다.
+
+정규화 규칙을 바꾸면 `song_name_answer`를 전부 다시 만들어야 한다. 파생값이기 때문이다.
 
 **나중에 (선택):** 곡이 수천 개가 되고 클라이언트 필터링이 느려지면 서버 검색으로 옮긴다.
 **그때가 Elasticsearch 자리다 — 그전이 아니다.**

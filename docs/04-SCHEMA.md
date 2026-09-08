@@ -20,7 +20,7 @@ name    varchar(50)  NOT NULL
 - 언어 추가가 **스키마 변경이 아니라 행 추가**가 된다 (D-036).
 - 곡 이름(D-040)과 보컬 이름(D-041)이 이 테이블을 공유한다.
 
-### producer ← D-013
+### producer ← D-013, D-053
 
 ```
 id          bigint  PK
@@ -29,8 +29,9 @@ created_at  timestamp
 ```
 
 - **언어별 이름을 두지 않는다** (D-013). 보컬과 다르게 가는 이유는 D-041에 적혀 있다.
+- 곡·영상과의 연결은 `song_credit` / `video_credit`이 맡는다 (D-053). `song_producer`는 없앴다.
 
-### vocal / vocal_name / song_vocal ← D-037, D-041
+### vocal / vocal_name ← D-037, D-041
 
 ```
 vocal
@@ -45,24 +46,41 @@ vocal_name
   name         varchar(100)  NOT NULL
   is_primary   boolean  NOT NULL DEFAULT false
   UNIQUE (vocal_id, language_id, name)
-
-song_vocal
-  song_id   bigint  FK → song
-  vocal_id  bigint  FK → vocal
-  PK (song_id, vocal_id)
 ```
 
-- 듀엣·합창곡 때문에 다대다 (D-037).
 - 데이터 출처는 vocaloard (D-035) — YouTube Data API는 보컬을 알려주지 않는다.
 
-### channel ← D-008, D-031, D-034
+### video_vocal ← D-050
+
+```
+video_id  bigint  FK → video
+vocal_id  bigint  FK → vocal
+PK (video_id, vocal_id)
+```
+
+- **진실.** 이 영상에서 실제로 부른 보컬이다.
+- 보컬은 곡이 아니라 음원의 속성이다. 셀프 커버는 보컬이 다르고, 커버는 사람이 부르기도 한다.
+
+### song_vocal ← D-050
+
+```
+song_id   bigint  FK → song
+vocal_id  bigint  FK → vocal
+PK (song_id, vocal_id)
+```
+
+- **파생.** 그 곡의 `kind = ORIGINAL` 영상들이 가진 `video_vocal`의 합집합이다.
+- 힌트와 범위지정 필터가 이 테이블을 읽는다. join 없이 곡 단위로 끝난다.
+- 갱신은 `video_vocal` 쓰기 경로 한 곳에 모은다. 그 영상이 ORIGINAL이면 다시 계산한다.
+- 정합성 점검을 관리자에게 노출한다. ORIGINAL 영상이 없는 곡은 점검 대상에서 제외한다.
+
+### channel ← D-008, D-031, D-034, D-054
 
 ```
 id                        bigint  PK
 youtube_channel_id        varchar(64)  UNIQUE NOT NULL    UCxxxx
 uploads_playlist_id       varchar(64)  NULL    ← channels.list contentDetails (D-034)
 name                      varchar(200)
-producer_id               bigint  FK → producer  NULL
 watch                     boolean  NOT NULL DEFAULT false   ← D-031: 기본 꺼짐
 last_video_published_at   timestamp  NULL     RSS 폴링 워터마크
 last_checked_at           timestamp  NULL
@@ -70,65 +88,103 @@ created_at                timestamp
 ```
 
 - 곡 등록 시 자동 기록되지만 `watch`는 사람이 켠다 (D-031).
-- `uploads_playlist_id`가 있으면 `playlistItems.list`로 전량 페이징이 가능하다 (D-034).
-  다만 전량을 통째로 넣지는 않는다 (D-039).
+- `producer_id`를 뺐다. 합작 채널 때문에 다대다로 간다 (D-054).
+- `uploads_playlist_id`는 Phase 3까지 NULL이다. 채우는 수단인 `channels.list`가 Phase 3의 일이다.
+  이 값이 있으면 `playlistItems.list`로 전량 페이징이 가능하다 (D-034). 다만 전량을 통째로 넣지는 않는다 (D-039).
 
-### song ← D-006, D-008, D-036, D-040, D-044
+### channel_producer ← D-054
+
+```
+channel_id   bigint  FK → channel
+producer_id  bigint  FK → producer
+PK (channel_id, producer_id)
+```
+
+- 합작 채널과 한 프로듀서의 여러 채널을 담는다.
+- 조인 엔티티로 만들고 양쪽에서 `@OneToMany`로 탐색한다.
+- 대표 프로듀서 표시는 두지 않는다.
+
+### song ← D-006, D-040, D-051
 
 ```
 id                     bigint  PK
-original_language_id   smallint  FK → language  NOT NULL   ← 제목이 어느 언어인지 (D-040)
-lyrics_language_id     smallint  FK → language  NOT NULL   ← 가사가 어느 언어인지 (D-044)
+original_language_id   smallint  FK → language  NOT NULL   ← 원제가 어느 언어인가 (D-040)
 status                 varchar(20)  NOT NULL    DRAFT | PUBLISHED
-search_keywords        text  NOT NULL           ← 파생 컬럼. song_name 저장 시 갱신
 created_at, updated_at
-INDEX (lyrics_language_id)
 ```
 
 - **제목 컬럼이 하나도 없다.** 전부 `song_name` 행이다 (D-040).
-- **언어 컬럼이 두 개인 이유 (D-044):**
-
-  | 컬럼                   | 의미            | 쓰이는 곳                 |
-  | ---------------------- | --------------- | ------------------------- |
-  | `original_language_id` | **제목**의 원어 | 표시 시 원제 병기 (D-007) |
-  | `lyrics_language_id`   | **가사**의 언어 | 범위지정 필터 축 (D-044)  |
-
-  보통 같은 값이지만 다를 수 있다 (영어 제목의 일본어 곡 등).
-  가사 언어 필터는 유명곡 일부가 잘려나가는 대신 난이도 일관성을 얻는 의도된 교환이다.
-
+- `lyrics_language_id`를 뺐다. 곡의 언어는 `song_language`로 간다 (D-051).
+- `search_keywords`를 뺐다. `song_name_answer`가 그 자리를 대신한다 (D-052).
+- `original_language_id`는 남는다. 표시할 때 원제를 병기하려면 어느 이름이 원제인지 알아야 한다 (D-007).
 - **`view_count` 컬럼 없음** — 조회수는 영상 단위이므로 `video`에 둔다.
 
-### song_name ← D-040
+### song_language ← D-051
 
 ```
-id           bigint  PK
-song_id      bigint    FK → song  NOT NULL
-language_id  smallint  FK → language  NOT NULL
-name         varchar(300)  NOT NULL
-normalized   varchar(300)  NOT NULL   NFKC → 소문자 → 기호제거 → 가타카나→히라가나
-is_primary   boolean  NOT NULL DEFAULT false
-created_at   timestamp
+song_id      bigint    FK → song
+language_id  smallint  FK → language
+PK (song_id, language_id)
+```
+
+- 이 곡이 무슨 언어로 불리는가. 범위지정 필터 축이다.
+- 일본어와 한국어가 섞인 곡은 행을 둘 갖고, 두 필터 모두에 걸린다.
+- 옛 `lyrics_language_id`가 여기로 통합됐다. 곡 자체의 언어가 가사 언어보다 포괄적이다.
+
+### song_name ← D-040, D-052
+
+```
+id              bigint  PK
+song_id         bigint    FK → song  NOT NULL
+language_id     smallint  FK → language  NOT NULL
+name            varchar(300)  NOT NULL
+answer_pattern  text  NULL          ← 정답 후보 패턴 (D-052)
+is_primary      boolean  NOT NULL DEFAULT false
+created_at      timestamp
 UNIQUE (song_id, language_id, name)
-UNIQUE (song_id, language_id) WHERE is_primary   ← 언어당 대표 이름 1개
+```
+
+- `is_primary = true` → 그 언어의 대표 표시 제목. `false` → 별칭 (약칭, 로마자, 통용 표기).
+- **`song_alias` 테이블은 없앴다** (D-040).
+- `normalized`를 뺐다. 정규화는 `song_name_answer`에서 한다 (D-052).
+- `answer_pattern`은 괄호와 파이프만 쓰는 패턴이다. `(히토|인간|사람)(마니아|매니아)`
+  문자 자체가 필요하면 `\(` `\|` `\)` `\\`로 이스케이프한다. NULL이면 `name` 하나만 전개된다.
+- 전개가 20개를 넘을 것으로 보이면 관리자 입력 창에서 경고한다. 저장은 막지 않는다.
+- **언어당 대표 이름 1개 제약은 아직 정하지 않았다 — O-31.**
+  `UNIQUE (song_id, language_id) WHERE is_primary`는 MySQL도 H2도 지원하지 않는다.
+
+### song_name_answer ← D-052
+
+```
+id            bigint  PK
+song_name_id  bigint  FK → song_name  NOT NULL
+normalized    varchar(300)  NOT NULL   NFKC → 소문자 → 기호제거 → 가타카나→히라가나
+created_at    timestamp
+UNIQUE (song_name_id, normalized)
 INDEX (normalized)
 ```
 
-- `is_primary = true` → 그 언어의 대표 표시 제목
-- `is_primary = false` → 별칭 (약칭, 로마자, 통용 표기)
-- **`song_alias` 테이블은 없앴다** (D-040). 정규화 로직이 한 곳에만 존재한다.
-- 검색은 이 테이블 **전체**를 본다 (D-007: 전 언어 매칭). 표시는 `is_primary`만 본다.
-- `search_keywords`(파생)는 이 테이블의 `normalized`를 이어붙인 것.
-  자동완성 API가 그것만 내려주면 되므로 조회 시 join이 없다.
+- **파생.** `song_name.answer_pattern`을 전개한 결과다. 원문이 바뀌면 그 행들을 통째로 다시 만든다.
+- 정답창에 입력하면 이 테이블로 후보를 띄우고 사용자가 고른다.
+  **판정은 여전히 songId 비교다** (02-ARCHITECTURE §7).
+- 화면에 보여줄 이름은 `song_name`이다. 전개 결과를 목록에 섞지 않는다.
+- 옛 `song.search_keywords`가 하던 일을 이 테이블이 한다.
 
-### song_producer ← D-013
+### song_credit ← D-053
 
 ```
 song_id      bigint  FK → song
 producer_id  bigint  FK → producer
-PK (song_id, producer_id)
+role         varchar(32)  NOT NULL   ← DB는 varchar, 서버는 enum (D-045와 같은 방식)
+PK (song_id, producer_id, role)
 ```
 
-### video ← D-006, D-010, D-034
+- 옛 `song_producer`를 대신한다. 다대다와 원어 표기 규칙은 D-013 그대로다.
+- PK에 `role`이 들어간 이유는 한 사람이 한 곡에서 두 역할을 맡을 수 있어서다.
+- **지금은 role 값을 하나만 쓴다.** 관리자 화면은 이름만 받고 role을 자동으로 채운다.
+- 값이 늘어도 DDL이 필요 없다. 역할 값의 목록은 아직 정하지 않았다 — O-32.
+
+### video ← D-006, D-010, D-034, D-055
 
 ```
 id                bigint  PK
@@ -146,10 +202,23 @@ created_at        timestamp
 INDEX (song_id)
 ```
 
-- `duration_sec`가 **NOT NULL이 되었다.** D-034로 서버가 직접 확보하므로
-  클라이언트 `getDuration()` 보고에 의존하지 않는다.
+- 컬럼은 그대로다. 다만 `kind`가 하는 일이 하나 늘었다.
+  출제 대상을 `kind = ORIGINAL`로 제한해 리믹스 정답의 어색함을 피한다 (D-055).
+- `song_vocal` 재계산도 이 컬럼을 본다 (D-050).
 - `view_count`는 하루 1회 배치로 갱신한다 (`videos.list`, id 50개당 1 unit).
-  A vs B 대결(D-009)이 이 컬럼을 쓴다.
+
+### video_credit ← D-053
+
+```
+video_id     bigint  FK → video
+producer_id  bigint  FK → producer
+role         varchar(32)  NOT NULL
+PK (video_id, producer_id, role)
+```
+
+- 리믹서와 커버 제작자가 여기에 들어간다. 곡이 아니라 그 영상의 크레딧이다.
+- 원곡 영상이라도 곡 크레딧을 **자동으로 상속하지 않는다.**
+  관리자 화면의 "곡 크레딧과 동일" 버튼으로 복사한다. 자동 상속은 캐시를 하나 더 만드는 일이다.
 
 ## 2. 출제 데이터
 
@@ -315,25 +384,32 @@ INDEX (round_id)
 -- 1) 후보 곡: PUBLISHED + 재생 가능한 영상에 해당 종류의 구간이 있는 곡
 SELECT DISTINCT s.id
 FROM song s
-JOIN video v   ON v.song_id = s.id AND v.playable = true
+JOIN video v   ON v.song_id = s.id AND v.playable = true AND v.kind = 'ORIGINAL'
 JOIN segment g ON g.video_id = v.id
 WHERE s.status = 'PUBLISHED'
   AND g.kind = :quizKind
   [AND g.structure_tag = :tag]                      -- "후렴만 출제" (D-028)
-  [AND EXISTS (SELECT 1 FROM song_producer sp
-               WHERE sp.song_id = s.id AND sp.producer_id IN (:producerIds))]   -- D-013
+  [AND EXISTS (SELECT 1 FROM song_credit sc
+               WHERE sc.song_id = s.id AND sc.producer_id IN (:producerIds))]   -- D-053
   [AND EXISTS (SELECT 1 FROM song_vocal sv
-               WHERE sv.song_id = s.id AND sv.vocal_id IN (:vocalIds))]         -- D-037
-  [AND s.lyrics_language_id IN (:lyricsLanguageIds)]                            -- D-044
+               WHERE sv.song_id = s.id AND sv.vocal_id IN (:vocalIds))]         -- D-050
+  [AND EXISTS (SELECT 1 FROM song_language sl
+               WHERE sl.song_id = s.id AND sl.language_id IN (:languageIds))]   -- D-051
 ```
+
+`v.kind = 'ORIGINAL'` 조건이 D-055다. 리믹스 영상을 내면 정답이 원곡 제목이라 어색해지므로
+출제 자체를 원곡으로 제한한다. 리믹스를 일부러 내는 유형이 생기면 그 유형이 조건을 다시 정한다.
 
 → 셔플 후 N곡 선택 (게임 내 중복 방지는 여기서, D-020)
 → 곡마다 영상 랜덤 → 그 영상의 구간 랜덤
 
-**자동완성 목록** (D-007, D-040) — join 없음:
+**자동완성 목록** (D-007, D-040, D-052):
 
 ```sql
-SELECT s.id, s.search_keywords,
+SELECT s.id,
+       (SELECT GROUP_CONCAT(a.normalized SEPARATOR ' ')
+        FROM song_name n JOIN song_name_answer a ON a.song_name_id = n.id
+        WHERE n.song_id = s.id) AS keywords,
        (SELECT name FROM song_name
         WHERE song_id = s.id AND language_id = :uiLang AND is_primary) AS display,
        (SELECT name FROM song_name
@@ -341,7 +417,11 @@ SELECT s.id, s.search_keywords,
 FROM song s WHERE s.status = 'PUBLISHED'
 ```
 
-→ 앱 시작 시 한 번 받아 캐시. 표시는 `display (original)`, 검색은 `search_keywords`.
+→ 앱 시작 시 한 번 받아 캐시. 표시는 `display (original)`, 검색은 `keywords`.
+
+- `song.search_keywords` 컬럼을 없앴으므로 이 목록은 전개 결과에서 만든다 (D-052).
+- `GROUP_CONCAT`의 기본 길이 제한(`group_concat_max_len`)에 걸릴 수 있다.
+  전개가 많은 곡에서 잘리면 값을 올리거나 곡당 별도 조회로 바꾼다.
 
 ## 7. 이 스키마에 **없는** 것 (의도적)
 
@@ -350,6 +430,11 @@ FROM song s WHERE s.status = 'PUBLISHED'
 | `song.view_count`            | 조회수는 영상 단위 → `video.view_count` (D-034)      |
 | `song.video_id`              | D-006 — 영상은 1:N                                   |
 | `song_alias` 테이블          | D-040 — `song_name`으로 통합                         |
+| `song.search_keywords`       | D-052 — `song_name_answer`가 대신한다                |
+| `song_name.normalized`       | D-052 — 정규화는 `song_name_answer`에서 한다         |
+| `song.lyrics_language_id`    | D-051 — `song_language`로 통합                       |
+| `song_producer` 테이블       | D-053 — `song_credit`(역할 포함)으로                 |
+| `channel.producer_id`        | D-054 — `channel_producer`로 (다대다)                |
 | `song.title_ko` / `title_en` | D-040 — `song_name` 행으로                           |
 | `producer.name_ko`           | D-013 — 원어 표기 하나만 (보컬과 다름, 근거는 D-041) |
 | `round.hint_level`           | D-018 — 점진 방식은 인트로 퀴즈 전용                 |
