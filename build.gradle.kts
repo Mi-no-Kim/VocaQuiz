@@ -37,12 +37,12 @@ dependencies {
 	testCompileOnly("org.projectlombok:lombok")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 	testAnnotationProcessor("org.projectlombok:lombok")
-    mockitoAgent("org.mockito:mockito-core") { isTransitive = false }
+	mockitoAgent("org.mockito:mockito-core") { isTransitive = false }
 }
 
 tasks.withType<Test> {
-    useJUnitPlatform()
-    jvmArgumentProviders.add(CommandLineArgumentProvider {
-        listOf("-javaagent:${mockitoAgent.asPath}")
-    })
+	useJUnitPlatform()
+	jvmArgumentProviders.add(CommandLineArgumentProvider {
+		listOf("-javaagent:${mockitoAgent.asPath}")
+	})
 }
