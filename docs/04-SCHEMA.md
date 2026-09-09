@@ -158,7 +158,7 @@ UNIQUE (song_id, language_id, name)
 ```
 id            bigint  PK
 song_name_id  bigint  FK → song_name  NOT NULL
-normalized    varchar(300)  NOT NULL   NFKC → 소문자 → 기호제거 → 가타카나→히라가나
+normalized    varchar(300)  NOT NULL   NFKC → 소문자 → 공백·기호 제거
 created_at    timestamp
 UNIQUE (song_name_id, normalized)
 INDEX (normalized)
@@ -169,6 +169,7 @@ INDEX (normalized)
   **판정은 여전히 songId 비교다** (02-ARCHITECTURE §7).
 - 화면에 보여줄 이름은 `song_name`이다. 전개 결과를 목록에 섞지 않는다.
 - 옛 `song.search_keywords`가 하던 일을 이 테이블이 한다.
+- 기호는 문자만 지운다. 괄호 안 내용은 남는다 — `千本桜(feat. 初音ミク)` → `千本桜feat初音ミク`
 
 ### song_credit ← D-053
 
