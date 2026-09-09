@@ -115,7 +115,7 @@ created_at, updated_at
 
 - **제목 컬럼이 하나도 없다.** 전부 `song_name` 행이다 (D-040).
 - `lyrics_language_id`를 뺐다. 곡의 언어는 `song_language`로 간다 (D-051).
-- `search_keywords`를 뺐다. `song_name_answer`가 그 자리를 대신한다 (D-052).
+- `search_keywords`를 뺐다. `song_answer`가 그 자리를 대신한다 (D-052, D-056).
 - `original_language_id`는 남는다. 표시할 때 원제를 병기하려면 어느 이름이 원제인지 알아야 한다 (D-007).
 - **`view_count` 컬럼 없음** — 조회수는 영상 단위이므로 `video`에 둔다.
 
@@ -131,40 +131,67 @@ PK (song_id, language_id)
 - 일본어와 한국어가 섞인 곡은 행을 둘 갖고, 두 필터 모두에 걸린다.
 - 옛 `lyrics_language_id`가 여기로 통합됐다. 곡 자체의 언어가 가사 언어보다 포괄적이다.
 
-### song_name ← D-040, D-052
+### song_name ← D-040, D-056
 
 ```
-id              bigint  PK
-song_id         bigint    FK → song  NOT NULL
-language_id     smallint  FK → language  NOT NULL
-name            varchar(300)  NOT NULL
-answer_pattern  text  NULL          ← 정답 후보 패턴 (D-052)
-is_primary      boolean  NOT NULL DEFAULT false
-created_at      timestamp
+id           bigint  PK
+song_id      bigint    FK → song  NOT NULL
+language_id  smallint  FK → language  NOT NULL
+name         varchar(300)  NOT NULL
+is_primary   boolean  NOT NULL DEFAULT false
+created_at   timestamp
 UNIQUE (song_id, language_id, name)
 ```
 
+- **보여주기 전용이다** (D-056). 정답 판정은 이 테이블을 보지 않는다.
 - `is_primary = true` → 그 언어의 대표 표시 제목. `false` → 별칭 (약칭, 로마자, 통용 표기).
 - **`song_alias` 테이블은 없앴다** (D-040).
-- `normalized`를 뺐다. 정규화는 `song_name_answer`에서 한다 (D-052).
-- `answer_pattern`은 괄호와 파이프만 쓰는 패턴이다. `(히토|인간|사람)(마니아|매니아)`
-  문자 자체가 필요하면 `\(` `\|` `\)` `\\`로 이스케이프한다. NULL이면 `name` 하나만 전개된다.
-- 전개가 20개를 넘을 것으로 보이면 관리자 입력 창에서 경고한다. 저장은 막지 않는다.
+- `normalized`와 `answer_pattern`을 뺐다. 정답 쪽은 `song_answer_pattern`으로 갈렸다 (D-056).
 - **언어당 대표 이름 1개 제약은 아직 정하지 않았다 — O-31.**
   `UNIQUE (song_id, language_id) WHERE is_primary`는 MySQL도 H2도 지원하지 않는다.
 
-### song_name_answer ← D-052
+### song_answer_pattern ← D-052, D-056
 
 ```
-id            bigint  PK
-song_name_id  bigint  FK → song_name  NOT NULL
-normalized    varchar(300)  NOT NULL   NFKC → 소문자 → 기호제거 → 가타카나→히라가나
-created_at    timestamp
-UNIQUE (song_name_id, normalized)
+id          bigint  PK
+song_id     bigint  FK → song  UNIQUE NOT NULL
+pattern     text  NOT NULL
+created_at, updated_at
+```
+
+- **진실.** 사람이 쓰고 고치는 정답 패턴 원문이다.
+- **곡당 한 행이다** (`song_id` UNIQUE). 여러 표기는 한 텍스트 안에 줄로 나열한다.
+
+```
+(히토|인간|사람)마니아
+Hito Mania
+ひとまにあ
+```
+
+- 줄은 `\R`로 자르고 각 줄을 `strip()`하며 빈 줄은 버린다.
+- 문법은 괄호와 파이프만. 문자 자체가 필요하면 `\(` `\|` `\)` `\\`로 이스케이프한다.
+- **언어를 구분하지 않는다** (D-056). 정답 판정에 언어가 필요하지 않다.
+- 한 줄이라도 문법이 틀리면 **전체가 실패한다.** 몇 번째 줄인지 알려 준다.
+  조용히 한 줄만 빠지면 검색되지 않는 곡이 생기고 아무도 모른다.
+- 전개가 20개를 넘을 것으로 보이면 관리자 입력 창에서 경고한다. 저장은 막지 않는다.
+- **곡 조회에 딸려 오지 않는다.** 테이블을 나눈 이유가 그것이다 — 정답 원문이 실수로
+  응답에 섞이는 경로를 만들지 않는다 (CLAUDE.md §1.1).
+
+### song_answer ← D-052, D-056
+
+```
+id          bigint  PK
+song_id     bigint  FK → song  NOT NULL
+normalized  varchar(300)  NOT NULL   NFKC → 소문자 → 공백·기호 제거
+created_at  timestamp
+UNIQUE (song_id, normalized)
 INDEX (normalized)
 ```
 
-- **파생.** `song_name.answer_pattern`을 전개한 결과다. 원문이 바뀌면 그 행들을 통째로 다시 만든다.
+- **파생.** `song_answer_pattern.pattern`을 전개하고 정규화한 결과다.
+  원문이 바뀌면 그 곡의 행을 통째로 다시 만든다.
+- `UNIQUE (song_id, normalized)`가 곡 단위 중복을 막는다. 서로 다른 줄이 같은 결과를 내도
+  한 행만 남으므로 **조회에서 DISTINCT가 필요 없다.**
 - 정답창에 입력하면 이 테이블로 후보를 띄우고 사용자가 고른다.
   **판정은 여전히 songId 비교다** (02-ARCHITECTURE §7).
 - 화면에 보여줄 이름은 `song_name`이다. 전개 결과를 목록에 섞지 않는다.
@@ -408,8 +435,7 @@ WHERE s.status = 'PUBLISHED'
 ```sql
 SELECT s.id,
        (SELECT GROUP_CONCAT(a.normalized SEPARATOR ' ')
-        FROM song_name n JOIN song_name_answer a ON a.song_name_id = n.id
-        WHERE n.song_id = s.id) AS keywords,
+        FROM song_answer a WHERE a.song_id = s.id) AS keywords,
        (SELECT name FROM song_name
         WHERE song_id = s.id AND language_id = :uiLang AND is_primary) AS display,
        (SELECT name FROM song_name
@@ -420,6 +446,7 @@ FROM song s WHERE s.status = 'PUBLISHED'
 → 앱 시작 시 한 번 받아 캐시. 표시는 `display (original)`, 검색은 `keywords`.
 
 - `song.search_keywords` 컬럼을 없앴으므로 이 목록은 전개 결과에서 만든다 (D-052).
+- `song_answer`가 곡 단위로 중복을 막으므로 `DISTINCT`가 필요 없다 (D-056).
 - `GROUP_CONCAT`의 기본 길이 제한(`group_concat_max_len`)에 걸릴 수 있다.
   전개가 많은 곡에서 잘리면 값을 올리거나 곡당 별도 조회로 바꾼다.
 
@@ -430,8 +457,10 @@ FROM song s WHERE s.status = 'PUBLISHED'
 | `song.view_count`            | 조회수는 영상 단위 → `video.view_count` (D-034)      |
 | `song.video_id`              | D-006 — 영상은 1:N                                   |
 | `song_alias` 테이블          | D-040 — `song_name`으로 통합                         |
-| `song.search_keywords`       | D-052 — `song_name_answer`가 대신한다                |
-| `song_name.normalized`       | D-052 — 정규화는 `song_name_answer`에서 한다         |
+| `song.search_keywords`       | D-052 — `song_answer`가 대신한다                     |
+| `song_name.normalized`       | D-052 — 정규화는 `song_answer`에서 한다              |
+| `song_name.answer_pattern`   | D-056 — 정답 패턴은 `song_answer_pattern`으로 갈렸다 |
+| `song_answer.language_id`    | D-056 — 정답 판정에 언어가 필요하지 않다             |
 | `song.lyrics_language_id`    | D-051 — `song_language`로 통합                       |
 | `song_producer` 테이블       | D-053 — `song_credit`(역할 포함)으로                 |
 | `channel.producer_id`        | D-054 — `channel_producer`로 (다대다)                |
