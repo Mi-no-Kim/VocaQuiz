@@ -75,7 +75,9 @@ D-050 ~ D-055를 읽어라.
    ★ answer_pattern이 바뀌면 song_name_answer를 다시 만든다 (D-052) ★
    ★ video_vocal이 바뀌고 그 영상이 ORIGINAL이면 song_vocal을 다시 계산한다 (D-050) ★
 5. youtube/YoutubeDataClient — videos.list만 구현.
-   id 50개씩 배치. 응답에서 title/duration/viewCount/publishedAt/channelId 추출
+   id 50개씩 배치. 응답에서 title/description/duration/viewCount/publishedAt/channelId 추출
+   description은 Phase 3에서 "이게 노래인가"를 AI에게 판정시킬 입력이다 (D-011).
+   part=snippet에 이미 들어 있어 추가 쿼터가 0이다. 지금은 받아만 두고 저장하지 않는다.
 6. Language 시드 데이터 (KO, EN, JA)
 
 [제약]

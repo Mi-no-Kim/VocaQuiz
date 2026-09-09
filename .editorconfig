@@ -5,6 +5,7 @@ root = true
 [*]
 charset = utf-8
 insert_final_newline = true
+end_of_line = lf
 
 [*.md]
 # 마크다운은 줄 끝 공백 두 칸이 줄바꿈 의미를 갖는다

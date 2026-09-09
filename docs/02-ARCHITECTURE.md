@@ -292,7 +292,7 @@ GET /api/v1/games/{gameId}/result
 
 ```
 POST   /api/v1/admin/songs/preview   { "videoId":"..." }
-       → videos.list로 제목·길이·조회수·게시일·채널을 받아 초안 반환 (저장 안 함)
+       → videos.list로 제목·설명문·길이·조회수·게시일·채널을 받아 초안 반환 (저장 안 함)
 POST   /api/v1/admin/songs           곡 + 이름들 + 프로듀서 + 보컬 + 언어 저장
 GET    /api/v1/admin/songs           목록 (검색, status 필터)
 GET    /api/v1/admin/videos/{id}/segments
@@ -397,12 +397,12 @@ API 스펙 변경 없음, 스키마 변경 없음, 다른 유형에 영향 없�
 
 하루 **10,000 units.**
 
-| 메서드               | 비용    | 한 번에 | 용도                         |
-| -------------------- | ------- | ------- | ---------------------------- |
-| `videos.list`        | 1       | id 50개 | 제목·길이·조회수·게시일·채널 |
-| `playlistItems.list` | 1       | 50개    | uploads 재생목록 페이징      |
-| `channels.list`      | 1       | id 50개 | `uploads_playlist_id` 획득   |
-| `search.list`        | **100** | —       | **쓰지 않는다**              |
+| 메서드               | 비용    | 한 번에 | 용도                                |
+| -------------------- | ------- | ------- | ----------------------------------- |
+| `videos.list`        | 1       | id 50개 | 제목·설명문·길이·조회수·게시일·채널 |
+| `playlistItems.list` | 1       | 50개    | uploads 재생목록 페이징             |
+| `channels.list`      | 1       | id 50개 | `uploads_playlist_id` 획득          |
+| `search.list`        | **100** | —       | **쓰지 않는다**                     |
 
 > **`search.list`를 코드 어디에도 쓰지 않는다.**
 > `videos.list`가 그것을 대체하는 게 아니다 — 하는 일이 다르다 (D-043).
