@@ -5,7 +5,8 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
     NOT_FOUND(HttpStatus.NOT_FOUND),
     INVALID_REQUEST(HttpStatus.BAD_REQUEST),
-    FORBIDDEN(HttpStatus.FORBIDDEN);
+    FORBIDDEN(HttpStatus.FORBIDDEN),
+    EXTERNAL_API_ERROR(HttpStatus.BAD_GATEWAY);
 
     private final HttpStatus status;
 

@@ -13,3 +13,7 @@ spring:
 
 app:
   admin-emails: ${ADMIN_EMAILS:}
+
+youtube:
+  api-key: ${YOUTUBE_API_KEY:}
+  base-url: https://www.googleapis.com/youtube/v3
