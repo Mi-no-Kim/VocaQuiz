@@ -12,3 +12,6 @@ spring:
           google:
             client-id: dummy-id
             client-secret: dummy-secret
+youtube:
+  api-key: dummy-key
+  base-url: https://youtube.test/v3
