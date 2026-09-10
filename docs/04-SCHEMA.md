@@ -9,6 +9,9 @@
 
 ## 1. 카탈로그
 
+> **조인 테이블도 대리 키 `id`를 갖는다.** 복합 PK 대신 UNIQUE 제약으로 같은 조합을 막는다.
+> 제약은 같고 강제 수단만 옮긴 것이다. JPA 매핑을 단순하게 두기 위한 선택이다.
+
 ### language ← D-036
 
 ```
@@ -53,9 +56,10 @@ vocal_name
 ### video_vocal ← D-050
 
 ```
-video_id  bigint  FK → video
-vocal_id  bigint  FK → vocal
-PK (video_id, vocal_id)
+id        bigint  PK
+video_id  bigint  FK → video  NOT NULL
+vocal_id  bigint  FK → vocal  NOT NULL
+UNIQUE (video_id, vocal_id)
 ```
 
 - **진실.** 이 영상에서 실제로 부른 보컬이다.
@@ -64,9 +68,10 @@ PK (video_id, vocal_id)
 ### song_vocal ← D-050
 
 ```
-song_id   bigint  FK → song
-vocal_id  bigint  FK → vocal
-PK (song_id, vocal_id)
+id        bigint  PK
+song_id   bigint  FK → song  NOT NULL
+vocal_id  bigint  FK → vocal  NOT NULL
+UNIQUE (song_id, vocal_id)
 ```
 
 - **파생.** 그 곡의 `kind = ORIGINAL` 영상들이 가진 `video_vocal`의 합집합이다.
@@ -95,9 +100,10 @@ created_at                timestamp
 ### channel_producer ← D-054
 
 ```
-channel_id   bigint  FK → channel
-producer_id  bigint  FK → producer
-PK (channel_id, producer_id)
+id           bigint  PK
+channel_id   bigint  FK → channel  NOT NULL
+producer_id  bigint  FK → producer  NOT NULL
+UNIQUE (channel_id, producer_id)
 ```
 
 - 합작 채널과 한 프로듀서의 여러 채널을 담는다.
@@ -122,9 +128,10 @@ created_at, updated_at
 ### song_language ← D-051
 
 ```
-song_id      bigint    FK → song
-language_id  smallint  FK → language
-PK (song_id, language_id)
+id           bigint    PK
+song_id      bigint    FK → song  NOT NULL
+language_id  smallint  FK → language  NOT NULL
+UNIQUE (song_id, language_id)
 ```
 
 - 이 곡이 무슨 언어로 불리는가. 범위지정 필터 축이다.
@@ -201,14 +208,15 @@ INDEX (normalized)
 ### song_credit ← D-053
 
 ```
-song_id      bigint  FK → song
-producer_id  bigint  FK → producer
+id           bigint  PK
+song_id      bigint  FK → song  NOT NULL
+producer_id  bigint  FK → producer  NOT NULL
 role         varchar(32)  NOT NULL   ← DB는 varchar, 서버는 enum (D-045와 같은 방식)
-PK (song_id, producer_id, role)
+UNIQUE (song_id, producer_id, role)
 ```
 
 - 옛 `song_producer`를 대신한다. 다대다와 원어 표기 규칙은 D-013 그대로다.
-- PK에 `role`이 들어간 이유는 한 사람이 한 곡에서 두 역할을 맡을 수 있어서다.
+- UNIQUE에 `role`이 들어간 이유는 한 사람이 한 곡에서 두 역할을 맡을 수 있어서다.
 - **지금은 role 값을 하나만 쓴다.** 관리자 화면은 이름만 받고 role을 자동으로 채운다.
 - 값이 늘어도 DDL이 필요 없다. 역할 값의 목록은 아직 정하지 않았다 — O-32.
 
@@ -238,10 +246,11 @@ INDEX (song_id)
 ### video_credit ← D-053
 
 ```
-video_id     bigint  FK → video
-producer_id  bigint  FK → producer
+id           bigint  PK
+video_id     bigint  FK → video  NOT NULL
+producer_id  bigint  FK → producer  NOT NULL
 role         varchar(32)  NOT NULL
-PK (video_id, producer_id, role)
+UNIQUE (video_id, producer_id, role)
 ```
 
 - 리믹서와 커버 제작자가 여기에 들어간다. 곡이 아니라 그 영상의 크레딧이다.
