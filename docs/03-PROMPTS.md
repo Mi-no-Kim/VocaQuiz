@@ -66,13 +66,13 @@ D-050 ~ D-055를 읽어라.
 
 [작업]
 1. 엔티티: Language, Producer, Vocal, VocalName, VideoVocal, SongVocal,
-   Channel, ChannelProducer, Song, SongLanguage, SongName, SongNameAnswer,
-   SongCredit, Video, VideoCredit  — 04-SCHEMA.md §1 그대로
+   Channel, ChannelProducer, Song, SongLanguage, SongName, SongAnswerPattern,
+   SongAnswer, SongCredit, Video, VideoCredit  — 04-SCHEMA.md §1 그대로
 2. catalog/service/TextNormalizer — 설계 문서 §7의 정규화 4단계
 3. catalog/service/AnswerPatternExpander — song_name.answer_pattern 전개 (D-052)
    괄호와 파이프만. \( \| \) \\ 이스케이프. 20개 초과면 경고 신호를 반환한다
 4. SongCatalogService — 파생 두 개의 갱신 경로를 각각 한 곳으로 모아라
-   ★ answer_pattern이 바뀌면 song_name_answer를 다시 만든다 (D-052) ★
+   ★ pattern이 바뀌면 그 곡의 song_answer를 다시 만든다 (D-052, D-056) ★
    ★ video_vocal이 바뀌고 그 영상이 ORIGINAL이면 song_vocal을 다시 계산한다 (D-050) ★
 5. youtube/YoutubeDataClient — videos.list만 구현.
    id 50개씩 배치. 응답에서 title/description/duration/viewCount/publishedAt/channelId 추출
@@ -87,7 +87,9 @@ D-050 ~ D-055를 읽어라.
 - song에 제목 컬럼을 만들지 마라. 전부 song_name 행이다 (D-040).
 - song에 언어 컬럼을 만들지 마라. 곡의 언어는 song_language다 (D-051).
   original_language_id는 예외다 — 원제가 어느 언어인지를 가리킨다.
-- song.search_keywords와 song_name.normalized를 만들지 마라. song_name_answer가 대신한다 (D-052).
+- song.search_keywords와 song_name.normalized를 만들지 마라. song_answer가 대신한다 (D-052).
+- song_name에 정답 패턴을 두지 마라. 보여주기 전용이다 (D-056).
+- song_answer에 언어를 두지 마라. 정답 판정에 언어가 필요하지 않다 (D-056).
 - credit.role은 DB varchar + 서버 enum이고 지금은 값 하나만 쓴다 (D-053).
   역할 목록을 미리 늘리지 마라 (O-32).
 - 원곡 영상의 크레딧을 곡에서 자동으로 상속하지 마라 (D-053).
@@ -97,7 +99,7 @@ D-050 ~ D-055를 읽어라.
 2) AnswerPatternExpander 단위 테스트: (히토|인간|사람)(마니아|매니아)가 6개로 전개되고,
    \( 는 문자 '(' 로 남는다.
 3) YoutubeDataClient로 videoId 하나를 조회하면 제목·길이·조회수가 나온다.
-4) 곡 하나를 코드로 저장하면 song_name_answer에 전 언어 후보가 들어간다.
+4) 곡 하나를 코드로 저장하면 song_answer에 후보가 들어가고, 중복된 표기는 한 행만 남는다.
 5) ORIGINAL 영상에 video_vocal을 넣으면 song_vocal이 같은 집합이 된다.
 ```
 
