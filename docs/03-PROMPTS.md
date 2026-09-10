@@ -62,14 +62,14 @@ Spring Boot 3.x + Java 21 + Gradle(Kotlin DSL).
 ```
 [맥락]
 docs/04-SCHEMA.md §1 전체와 docs/00-DECISIONS.md D-034, D-040, D-043,
-D-050 ~ D-055를 읽어라.
+D-050 ~ D-056을 읽어라.
 
 [작업]
 1. 엔티티: Language, Producer, Vocal, VocalName, VideoVocal, SongVocal,
    Channel, ChannelProducer, Song, SongLanguage, SongName, SongAnswerPattern,
    SongAnswer, SongCredit, Video, VideoCredit  — 04-SCHEMA.md §1 그대로
-2. catalog/service/TextNormalizer — 설계 문서 §7의 정규화 4단계
-3. catalog/service/AnswerPatternExpander — song_name.answer_pattern 전개 (D-052)
+2. catalog/service/TextNormalizer — 설계 문서 §7의 정규화 3단계
+3. catalog/service/AnswerPatternExpander — song_answer_pattern.pattern 전개 (D-052, D-056)
    괄호와 파이프만. \( \| \) \\ 이스케이프. 20개 초과면 경고 신호를 반환한다
 4. SongCatalogService — 파생 두 개의 갱신 경로를 각각 한 곳으로 모아라
    ★ pattern이 바뀌면 그 곡의 song_answer를 다시 만든다 (D-052, D-056) ★
