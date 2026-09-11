@@ -32,9 +32,12 @@
 ```
 com.vocaquiz
 ├── catalog/                    # 곡 카탈로그
-│   ├── domain/     Song, SongName, Video, Segment, Producer, Vocal, VocalName, Language
+│   ├── domain/     Song, SongName, SongLanguage, SongAnswerPattern, SongAnswer,
+│   │               SongCredit, SongVocal, Video, VideoCredit, VideoVocal, Segment,
+│   │               Channel, ChannelProducer, Producer, Vocal, VocalName, Language
 │   ├── repository/
-│   ├── service/    SongCatalogService, SegmentService, TextNormalizer
+│   ├── service/    SongCatalogService, SegmentService,
+│   │               TextNormalizer, AnswerPatternExpander
 │   └── api/        SongController          (자동완성 목록)
 │
 ├── youtube/                    # 외부 연동 (D-034)
@@ -43,7 +46,7 @@ com.vocaquiz
 │   └── dto/
 │
 ├── ingest/                     # 자동 파이프라인 (Phase 3)
-│   ├── domain/     Channel, IngestItem
+│   ├── domain/     IngestItem
 │   ├── service/    ChannelWatcher, SongClassifier(AI), IngestReviewService
 │   └── scraper/    VocaloardScraper        (D-035, D-047)
 │
@@ -66,7 +69,9 @@ com.vocaquiz
 ├── room/                       # Phase 4 (멀티)
 ├── user/                       AppUser, 인증
 └── common/
-    ├── config/     SecurityConfig, WebConfig, JacksonConfig, WebSocketConfig
+    ├── config/     SecurityConfig, WebConfig, JacksonConfig, WebSocketConfig,
+    │               JpaAuditingConfig
+    ├── domain/     CreatedAtEntity, TimestampedEntity
     ├── error/      ApiException, ErrorCode, GlobalExceptionHandler
     └── util/       SeedGenerator
 ```
@@ -83,7 +88,7 @@ com.vocaquiz
 
 ## 3. 도메인 모델
 
-**→ `docs/04-SCHEMA.md`** (테이블 21개, 컬럼마다 결정 번호 근거 포함)
+**→ `docs/04-SCHEMA.md`** (테이블 22개, 컬럼마다 결정 번호 근거 포함)
 
 여기서는 코드 관점의 요점만 적는다:
 
@@ -386,6 +391,7 @@ API 스펙 변경 없음, 스키마 변경 없음, 다른 유형에 영향 없�
 가타카나→히라가나 통일은 넣지 않는다 (D-052).
 
 `song_answer.normalized`가 이걸 쓴다 (D-052).
+
 `catalog/service`에 둔다 — 자동완성과 미래의 `LYRIC_BLANK`가 함께 쓴다.
 
 정규화 규칙을 바꾸면 `song_answer`를 전부 다시 만들어야 한다. 파생값이기 때문이다.
