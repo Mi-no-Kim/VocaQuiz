@@ -15,7 +15,7 @@
 ### language ← D-036
 
 ```
-id      smallint  PK
+id      bigint  PK
 code    varchar(10)  UNIQUE NOT NULL    KO | EN | JA | …
 name    varchar(50)  NOT NULL
 ```
@@ -45,9 +45,10 @@ vocal
 vocal_name
   id           bigint  PK
   vocal_id     bigint    FK → vocal
-  language_id  smallint  FK → language
+  language_id  bigint    FK → language
   name         varchar(100)  NOT NULL
   is_primary   boolean  NOT NULL DEFAULT false
+  created_at   timestamp
   UNIQUE (vocal_id, language_id, name)
 ```
 
@@ -114,7 +115,7 @@ UNIQUE (channel_id, producer_id)
 
 ```
 id                     bigint  PK
-original_language_id   smallint  FK → language  NOT NULL   ← 원제가 어느 언어인가 (D-040)
+original_language_id   bigint  FK → language  NOT NULL   ← 원제가 어느 언어인가 (D-040)
 status                 varchar(20)  NOT NULL    DRAFT | PUBLISHED
 created_at, updated_at
 ```
@@ -130,7 +131,7 @@ created_at, updated_at
 ```
 id           bigint    PK
 song_id      bigint    FK → song  NOT NULL
-language_id  smallint  FK → language  NOT NULL
+language_id  bigint    FK → language  NOT NULL
 UNIQUE (song_id, language_id)
 ```
 
@@ -143,7 +144,7 @@ UNIQUE (song_id, language_id)
 ```
 id           bigint  PK
 song_id      bigint    FK → song  NOT NULL
-language_id  smallint  FK → language  NOT NULL
+language_id  bigint    FK → language  NOT NULL
 name         varchar(300)  NOT NULL
 is_primary   boolean  NOT NULL DEFAULT false
 created_at   timestamp
@@ -162,7 +163,7 @@ UNIQUE (song_id, language_id, name)
 ```
 id          bigint  PK
 song_id     bigint  FK → song  UNIQUE NOT NULL
-pattern     text  NOT NULL
+pattern     varchar(2000)  NOT NULL
 created_at, updated_at
 ```
 
