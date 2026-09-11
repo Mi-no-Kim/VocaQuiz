@@ -40,20 +40,23 @@ public class SongCatalogService {
     /**
      * 곡의 정답 패턴 원문을 넣거나 고치고, 그 곡의 song_answer를 다시 만든다.
      *
-     * <p>문법이 틀리면 전개기가 몇 번째 줄인지와 함께 던지고 트랜잭션이 통째로
-     * 되돌아간다. 원문만 저장되고 파생이 뒤처지는 상태가 생기지 않는다.
+     * <p><b>전개를 먼저 한다.</b> 문법이 틀리면 전개기가 몇 번째 줄인지와 함께 던지는데,
+     * 그 시점에는 아직 아무것도 건드리지 않았다. 원문만 저장되고 파생이 뒤처지는 상태를
+     * 롤백이 아니라 순서로 막는다 — 호출자가 트랜잭션을 소유하고 예외를 삼켜도 같다.
      */
     @Transactional
     public void replaceAnswerPattern(Long songId, String pattern) {
         Song song = songRepository.findById(songId)
             .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "song " + songId));
 
+        Set<String> keys = normalizedKeysOf(pattern);
+
         songAnswerPatternRepository.findBySongId(songId)
             .ifPresentOrElse(
                 existing -> existing.updatePattern(pattern),
                 () -> songAnswerPatternRepository.save(SongAnswerPattern.create(song, pattern)));
 
-        rebuildAnswers(songId, pattern);
+        rebuildAnswers(songId, keys);
     }
 
     /** 영상의 보컬을 통째로 바꾼다. 그 영상이 ORIGINAL이면 곡의 song_vocal을 다시 계산한다. */
@@ -85,16 +88,25 @@ public class SongCatalogService {
     }
 
     /**
-     * 원문을 전개하고 정규화해 song_answer를 통째로 다시 만든다.
+     * 정규화된 후보로 song_answer를 통째로 다시 만든다.
      *
      * <p>지우고 다시 넣는다 — song_answer의 id를 참조하는 곳이 없어 유지할 이유가 없다.
-     * 빈 후보는 버린다. {@code ()} 같은 줄이 내는 빈 문자열은 아무것도 매칭하지 않는다.
      *
      * <p>{@code deleteBySongId}는 벌크 삭제이고 {@code flushAutomatically}로 먼저
      * 내보낸다. 이게 없으면 Hibernate가 insert를 delete보다 앞세워
      * UNIQUE (song_id, normalized)에 걸린다.
      */
-    private void rebuildAnswers(Long songId, String pattern) {
+    private void rebuildAnswers(Long songId, Set<String> keys) {
+        songAnswerRepository.deleteBySongId(songId);
+
+        Song songRef = songRepository.getReferenceById(songId);
+        List<SongAnswer> answers = new ArrayList<>(keys.size());
+        keys.forEach(key -> answers.add(SongAnswer.create(songRef, key)));
+        songAnswerRepository.saveAll(answers);
+    }
+
+    /** 원문을 전개하고 정규화한다. 빈 후보는 버린다 — 아무것도 매칭하지 않는 행이다. */
+    private Set<String> normalizedKeysOf(String pattern) {
         Set<String> keys = new LinkedHashSet<>();
         for (String candidate : AnswerPatternExpander.expand(pattern)) {
             String normalized = TextNormalizer.normalize(candidate);
@@ -102,13 +114,7 @@ public class SongCatalogService {
                 keys.add(normalized);
             }
         }
-
-        songAnswerRepository.deleteBySongId(songId);
-
-        Song songRef = songRepository.getReferenceById(songId);
-        List<SongAnswer> answers = new ArrayList<>(keys.size());
-        keys.forEach(key -> answers.add(SongAnswer.create(songRef, key)));
-        songAnswerRepository.saveAll(answers);
+        return keys;
     }
 
     /**
