@@ -1,5 +1,6 @@
 package com.vocaquiz.catalog.domain;
 
+import com.vocaquiz.common.domain.CreatedAtEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -12,7 +13,7 @@ import lombok.NoArgsConstructor;
         columnNames = {"vocal_id", "language_id", "name"}))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class VocalName {
+public class VocalName extends CreatedAtEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

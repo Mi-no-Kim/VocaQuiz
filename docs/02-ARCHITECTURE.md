@@ -69,7 +69,9 @@ com.vocaquiz
 ├── room/                       # Phase 4 (멀티)
 ├── user/                       AppUser, 인증
 └── common/
-    ├── config/     SecurityConfig, WebConfig, JacksonConfig, WebSocketConfig
+    ├── config/     SecurityConfig, WebConfig, JacksonConfig, WebSocketConfig,
+    │               JpaAuditingConfig
+    ├── domain/     CreatedAtEntity, TimestampedEntity
     ├── error/      ApiException, ErrorCode, GlobalExceptionHandler
     └── util/       SeedGenerator
 ```

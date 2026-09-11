@@ -1,5 +1,6 @@
 package com.vocaquiz.catalog.domain;
 
+import com.vocaquiz.common.domain.CreatedAtEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -17,7 +18,7 @@ import java.time.Instant;
         columnList = "song_id"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Video {
+public class Video extends CreatedAtEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -56,9 +57,6 @@ public class Video {
 
     private Instant publishedAt;
 
-    @Column(nullable = false)
-    private Instant createdAt;
-
     public static Video create(
         Song song,
         Channel channel,
@@ -77,7 +75,6 @@ public class Video {
         video.publishedAt = publishedAt;
         video.titleSnapshot = titleSnapshot;
         video.playable = true;
-        video.createdAt = Instant.now();
 
         return video;
     }

@@ -1,17 +1,16 @@
 package com.vocaquiz.catalog.domain;
 
+import com.vocaquiz.common.domain.CreatedAtEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.Instant;
-
 @Entity
 @Table(name = "producer")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Producer {
+public class Producer extends CreatedAtEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,13 +19,9 @@ public class Producer {
     @Column(length = 100, nullable = false)
     private String name;
 
-    @Column(nullable = false)
-    private Instant createdAt;
-
     public static Producer create(String name) {
         Producer producer = new Producer();
         producer.name = name;
-        producer.createdAt = Instant.now();
 
         return producer;
     }

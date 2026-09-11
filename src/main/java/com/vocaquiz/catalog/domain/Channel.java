@@ -1,5 +1,6 @@
 package com.vocaquiz.catalog.domain;
 
+import com.vocaquiz.common.domain.CreatedAtEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -14,7 +15,7 @@ import java.time.Instant;
         columnNames = "youtube_channel_id"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Channel {
+public class Channel extends CreatedAtEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,15 +40,11 @@ public class Channel {
 
     private Instant lastCheckedAt;
 
-    @Column(nullable = false)
-    private Instant createdAt;
-
     public static Channel create(String youtubeChannelId, String name) {
         Channel channel = new Channel();
         channel.youtubeChannelId = youtubeChannelId;
         channel.name = name;
         channel.watch = false;
-        channel.createdAt = Instant.now();
 
         return channel;
     }

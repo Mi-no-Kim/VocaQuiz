@@ -1,11 +1,10 @@
 package com.vocaquiz.catalog.domain;
 
+import com.vocaquiz.common.domain.CreatedAtEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.Instant;
 
 @Entity
 @Table(
@@ -18,7 +17,7 @@ import java.time.Instant;
         columnList = "normalized"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class SongAnswer {
+public class SongAnswer extends CreatedAtEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,14 +30,10 @@ public class SongAnswer {
     @Column(length = 300, nullable = false)
     private String normalized;
 
-    @Column(nullable = false)
-    private Instant createdAt;
-
     public static SongAnswer create(Song song, String normalized) {
         SongAnswer songAnswer = new SongAnswer();
         songAnswer.song = song;
         songAnswer.normalized = normalized;
-        songAnswer.createdAt = Instant.now();
 
         return songAnswer;
     }

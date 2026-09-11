@@ -1,12 +1,10 @@
 package com.vocaquiz.catalog.domain;
 
-
+import com.vocaquiz.common.domain.TimestampedEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.time.Instant;
 
 /**
  * 사람이 쓰고 고치는 정답 패턴 원문 (D-052, D-056). <b>진실</b>이다.
@@ -22,7 +20,7 @@ import java.time.Instant;
         columnNames = "song_id"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class SongAnswerPattern {
+public class SongAnswerPattern extends TimestampedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,28 +33,15 @@ public class SongAnswerPattern {
     @Column(length = 2000, nullable = false)
     private String pattern;
 
-    @Column(nullable = false)
-    private Instant createdAt;
-
-    @Column(nullable = false)
-    private Instant updatedAt;
-
     public static SongAnswerPattern create(Song song, String pattern) {
         SongAnswerPattern songAnswerPattern = new SongAnswerPattern();
         songAnswerPattern.song = song;
         songAnswerPattern.pattern = pattern;
-        songAnswerPattern.update();
-        songAnswerPattern.createdAt = songAnswerPattern.updatedAt;
 
         return songAnswerPattern;
     }
 
     public void updatePattern(String pattern) {
         this.pattern = pattern;
-    }
-
-    @PreUpdate
-    public void update() {
-        this.updatedAt = Instant.now();
     }
 }

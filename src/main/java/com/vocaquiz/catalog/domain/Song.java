@@ -1,11 +1,11 @@
 package com.vocaquiz.catalog.domain;
 
+import com.vocaquiz.common.domain.TimestampedEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,7 +13,7 @@ import java.util.List;
 @Table(name = "song")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Song {
+public class Song extends TimestampedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,24 +27,11 @@ public class Song {
     @Enumerated(value = EnumType.STRING)
     private SongStatus status;
 
-    @Column(nullable = false)
-    private Instant createdAt;
-
-    @Column(nullable = false)
-    private Instant updatedAt;
-
     public static Song create(Language originalLanguage, SongStatus status) {
         Song song = new Song();
         song.originalLanguage = originalLanguage;
         song.status = status;
-        song.update();
-        song.createdAt = song.updatedAt;
 
         return song;
-    }
-
-    @PreUpdate
-    public void update() {
-        this.updatedAt = Instant.now();
     }
 }
