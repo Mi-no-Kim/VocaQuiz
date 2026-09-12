@@ -109,13 +109,17 @@ docs/03-PROMPTS.md      ← 단계별 실행 프롬프트
 - **상태 관리 라이브러리를 추가하지 않는다.** `useState`/`useReducer`/context로 충분하다.
 - 서버 응답 타입은 `src/api/types.ts` 한 곳에.
 - API 호출은 `src/api/` 안의 함수로만. 컴포넌트에서 `fetch` 직접 호출 금지.
-- **CSS를 직접 쓰지 않는다.** UI 킷으로 해결 안 되면 그 화면을 단순화한다.
+- **CSS 파일을 직접 쓰지 않는다.** 모양은 shadcn/ui 컴포넌트와 Tailwind 클래스로 정한다 (D-058).
+  그걸로 안 되면 그 화면을 단순화한다.
 - `any` 금지 (`registry`의 `Record` 값 타입만 예외).
 
 ### 2.5 DB
 
-- Phase 1은 `ddl-auto=create-drop` + 시드. **Phase 2부터 Flyway만.**
-- 마이그레이션 파일명 `V{n}__{snake_case_설명}.sql`
+- `ddl-auto`는 프로파일마다 다르다 (D-049). dev는 MySQL + `update`, test는 H2 인메모리 + `create-drop`.
+  **dev에 `create-drop`을 걸지 않는다.** 재기동마다 실제 테이블이 사라지고, P1-5의 구간 데이터가 거기 들어간다.
+- `update`는 컬럼 추가만 반영한다. 삭제·타입 변경·이름 변경이 필요하면 손으로 `DROP DATABASE` 후 재기동한다 (D-049).
+- 기본 데이터는 시더가 넣는다 (`LanguageSeeder` 등). 기동할 때 없는 것만 넣으므로 몇 번 떠도 같은 결과다.
+- **Phase 2부터 Flyway만.** 마이그레이션 파일명 `V{n}__{snake_case_설명}.sql`
 - 컬럼은 `snake_case`, 필드는 `camelCase`. Spring 기본 전략을 믿는다.
 
 ---
@@ -154,7 +158,7 @@ docs/03-PROMPTS.md      ← 단계별 실행 프롬프트
 ## 4. Git
 
 - `main` — 항상 동작하는 상태. 직접 push 하지 않는다.
-- 브랜치는 `{type}/{이슈번호}-{짧은-설명}`. 예) `feat/12-oauth2-admin-whitelist`
+- 브랜치는 `{type}/{이슈번호}/{짧은-설명}`. 예) `feat/12/oauth2-admin-whitelist`
 - 이슈·PR·라벨의 상세 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```
@@ -200,6 +204,7 @@ type: `feat` `fix` `refactor` `test` `docs` `chore`
 
 - 요청하지 않은 파일 수정 — 특히 `docs/`, `CLAUDE.md`, `build.gradle.kts`
 - 요청하지 않은 의존성 추가 — **새 라이브러리는 반드시 먼저 물어본다**
+  (예외: `shadcn add`가 컴포넌트와 함께 설치하는 것, D-058)
 - 결정 로그에 있는 사항을 임의로 다시 정하기
 - 인터페이스 하나에 구현체 하나뿐인 추상화
   - **명시적 예외 1개: `QuizType`.** 두 번째·세 번째 구현체가 Phase 3에 확정되어 있고
@@ -225,6 +230,7 @@ type: `feat` `fix` `refactor` `test` `docs` `chore`
 ### 5.3 AI가 반드시 해야 하는 것
 
 - 작업 전에 **가정을 말한다.** 문서에 없는 걸 만나면 추측하지 말고 묻는다.
+- 프론트(`frontend/`) 코드는 AI가 쓰고 사람이 리뷰한다. AI는 무엇을 왜 그렇게 짰는지 설명한다.
 - 코드를 쓴 후 **§1 절대 규칙과 `02-ARCHITECTURE.md` §12 체크리스트를 스스로 확인**하고 보고한다.
 - 더 단순한 방법이 있으면 **먼저 말한다.**
 - 200줄을 썼는데 50줄로 될 것 같으면 다시 쓴다.
@@ -258,9 +264,33 @@ cd frontend && npm run dev     # 프론트 5173, /api → 8080 프록시
 ./gradlew build
 ```
 
-환경변수는 `.env.example`을 복사해 `.env`로.
-`YOUTUBE_API_KEY`, `OAUTH_*`, `ADMIN_EMAILS`, `DB_*`.
-**`.env`와 API 키는 절대 커밋하지 않는다.**
+비밀값은 `config/local.yaml`에 둔다. `.env`는 쓰지 않는다.
+`application-dev.yaml`이 `optional:file:./config/local.yaml`로 가져가고, **임포트된 파일이 임포트한 파일을 이긴다.**
+
+```yaml
+# config/local.yaml — /config/는 gitignore다
+spring:
+  datasource:
+    username: ...
+    password: ...
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ...
+            client-secret: ...
+app:
+  admin-emails: me@example.com
+youtube:
+  api-key: ...
+```
+
+운영에는 `config/`가 없다. 같은 값을 환경변수(`OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GOOGLE_CLIENT_SECRET`,
+`ADMIN_EMAILS`, `YOUTUBE_API_KEY`)로 채우면 `application.yaml`의 자리표시자가 받는다.
+**코드는 어느 쪽이든 같다.**
+
+**자격증명과 API 키는 절대 커밋하지 않는다.**
 
 ---
 
