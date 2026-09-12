@@ -1,9 +1,9 @@
-# 스키마 초안
+# 스키마
 
-`docs/00-DECISIONS.md`의 D-001 ~ D-033에서 **기계적으로 도출한** 결과다.
-여기 있는 모든 컬럼은 결정 하나를 근거로 가진다. 근거 없는 컬럼은 없어야 한다.
+**테이블 정의의 진실의 원천이다.** `02-ARCHITECTURE.md`는 테이블을 적지 않고 이 문서를 가리킨다.
 
-> **아직 확정 아님.** 확인 후 `02-ARCHITECTURE.md`에 반영한다.
+여기 있는 모든 컬럼은 `docs/00-DECISIONS.md`의 결정 하나를 근거로 가진다. 근거 없는 컬럼은 없어야 한다.
+결정이 바뀌면 결정 로그를 먼저 고치고 이 문서를 맞춘다.
 
 ---
 
@@ -23,18 +23,19 @@ name    varchar(50)  NOT NULL
 - 언어 추가가 **스키마 변경이 아니라 행 추가**가 된다 (D-036).
 - 곡 이름(D-040)과 보컬 이름(D-041)이 이 테이블을 공유한다.
 
-### producer ← D-013, D-053
+### producer ← D-013, D-053, D-063
 
 ```
 id          bigint  PK
-name        varchar(100)  NOT NULL    원어 표기. wowaka, DECO*27
+name        varchar(100)  UNIQUE NOT NULL    원어 표기. wowaka, DECO*27  ← D-063
 created_at  timestamp
 ```
 
 - **언어별 이름을 두지 않는다** (D-013). 보컬과 다르게 가는 이유는 D-041에 적혀 있다.
 - 곡·영상과의 연결은 `song_credit` / `video_credit`이 맡는다 (D-053). `song_producer`는 없앴다.
+- `name`은 유일하다 (D-063). 관리자 화면은 자동완성으로 기존 행을 고르게 하고, 없을 때만 만든다.
 
-### vocal / vocal_name ← D-037, D-041
+### vocal / vocal_name ← D-037, D-041, D-064
 
 ```
 vocal
@@ -52,7 +53,8 @@ vocal_name
   UNIQUE (vocal_id, language_id, name)
 ```
 
-- 데이터 출처는 vocaloard (D-035) — YouTube Data API는 보컬을 알려주지 않는다.
+- YouTube Data API는 보컬을 알려주지 않는다. Phase 1은 코드로 시드한 목록에서 사람이 고르고 (D-064), vocaloard(D-035)는 Phase 3의 출처다.
+- 보컬 이름은 아무 언어로 1개 이상이면 된다. 보여 줄 언어의 이름이 없으면 `code`를 보여 준다 (D-064).
 
 ### video_vocal ← D-050
 
@@ -111,12 +113,12 @@ UNIQUE (channel_id, producer_id)
 - 조인 엔티티로 만들고 양쪽에서 `@OneToMany`로 탐색한다.
 - 대표 프로듀서 표시는 두지 않는다.
 
-### song ← D-006, D-040, D-051
+### song ← D-006, D-040, D-051, D-062
 
 ```
 id                     bigint  PK
 original_language_id   bigint  FK → language  NOT NULL   ← 원제가 어느 언어인가 (D-040)
-status                 varchar(20)  NOT NULL    DRAFT | PUBLISHED
+status                 varchar(20)  NOT NULL    DRAFT | PUBLISHED  ← PUBLISHED 전환 조건 (D-062)
 created_at, updated_at
 ```
 
@@ -125,6 +127,7 @@ created_at, updated_at
 - `search_keywords`를 뺐다. `song_answer`가 그 자리를 대신한다 (D-052, D-056).
 - `original_language_id`는 남는다. 표시할 때 원제를 병기하려면 어느 이름이 원제인지 알아야 한다 (D-007).
 - **`view_count` 컬럼 없음** — 조회수는 영상 단위이므로 `video`에 둔다.
+- PUBLISHED로 바꾸려면 원제 대표 이름 · 정답 패턴 · 수집된 ORIGINAL 영상이 있어야 한다 (D-062). 출제 쿼리(§6)는 PUBLISHED만 본다.
 
 ### song_language ← D-051
 
@@ -139,7 +142,7 @@ UNIQUE (song_id, language_id)
 - 일본어와 한국어가 섞인 곡은 행을 둘 갖고, 두 필터 모두에 걸린다.
 - 옛 `lyrics_language_id`가 여기로 통합됐다. 곡 자체의 언어가 가사 언어보다 포괄적이다.
 
-### song_name ← D-040, D-056
+### song_name ← D-040, D-056, D-061
 
 ```
 id           bigint  PK
@@ -155,8 +158,8 @@ UNIQUE (song_id, language_id, name)
 - `is_primary = true` → 그 언어의 대표 표시 제목. `false` → 별칭 (약칭, 로마자, 통용 표기).
 - **`song_alias` 테이블은 없앴다** (D-040).
 - `normalized`와 `answer_pattern`을 뺐다. 정답 쪽은 `song_answer_pattern`으로 갈렸다 (D-056).
-- **언어당 대표 이름 1개 제약은 아직 정하지 않았다 — O-31.**
-  `UNIQUE (song_id, language_id) WHERE is_primary`는 MySQL도 H2도 지원하지 않는다.
+- **이름이 있는 언어마다 대표 이름은 1개, 원제 언어에는 대표 필수 (D-061).** 서비스가 검증한다.
+  `UNIQUE (song_id, language_id) WHERE is_primary`는 MySQL도 H2도 지원하지 않아 DB 제약으로는 걸 수 없다.
 
 ### song_answer_pattern ← D-052, D-056
 
@@ -221,16 +224,17 @@ UNIQUE (song_id, producer_id, role)
 - **지금은 role 값을 하나만 쓴다.** 관리자 화면은 이름만 받고 role을 자동으로 채운다.
 - 값이 늘어도 DDL이 필요 없다. 역할 값의 목록은 아직 정하지 않았다 — O-32.
 
-### video ← D-006, D-010, D-034, D-055
+### video ← D-006, D-010, D-034, D-055, D-059, D-060
 
 ```
 id                bigint  PK
-song_id           bigint  FK → song  NOT NULL
+song_id           bigint  FK → song  NULL      ← 곡 없는 영상이 있다 (D-059)
 channel_id        bigint  FK → channel  NULL
 youtube_video_id  varchar(32)  UNIQUE NOT NULL
 kind              varchar(32)  NOT NULL    ORIGINAL | MV | SELF_COVER | COVER | LIVE | OTHER
 playable          boolean  NOT NULL DEFAULT true   ← D-010: 출제 필터는 이것만 본다
-duration_sec      int  NOT NULL       ← videos.list contentDetails.duration (D-034)
+(수집 상태)       varchar(20)  NOT NULL   미수집 | 수집됨 | 실패 (D-060). 이름은 P1-3-3에서 정한다
+duration_sec      int  NULL           ← videos.list contentDetails.duration (D-034). 수집 전에는 NULL (D-060)
 view_count        bigint  NULL         ← videos.list statistics.viewCount (D-034)
 stats_updated_at  timestamp  NULL      조회수 배치 갱신 시각
 title_snapshot    varchar(300)  NULL   videos.list snippet.title 원문. 검수·추적용
@@ -243,6 +247,8 @@ INDEX (song_id)
   출제 대상을 `kind = ORIGINAL`로 제한해 리믹스 정답의 어색함을 피한다 (D-055).
 - `song_vocal` 재계산도 이 컬럼을 본다 (D-050).
 - `view_count`는 하루 1회 배치로 갱신한다 (`videos.list`, id 50개당 1 unit).
+- 곡 없이도 존재한다 (D-059). 곡 편집이나 영상 편집에서 곡과 연결한다.
+- URL을 넣으면 미수집으로 생기고, 일괄 수집이 `duration_sec` · `published_at` · `title_snapshot` · `view_count` · `channel_id`를 채운다 (D-060). 수집 전 영상에는 구간을 찍지 않는다.
 
 ### video_credit ← D-053
 
@@ -440,6 +446,8 @@ WHERE s.status = 'PUBLISHED'
 
 → 셔플 후 N곡 선택 (게임 내 중복 방지는 여기서, D-020)
 → 곡마다 영상 랜덤 → 그 영상의 구간 랜덤
+
+곡 없는 영상(D-059)은 `v.song_id = s.id` JOIN에서 빠지고, 미수집 영상(D-060)은 구간이 없어서 빠진다. 쿼리를 고칠 필요가 없다.
 
 **자동완성 목록** (D-007, D-040, D-052):
 

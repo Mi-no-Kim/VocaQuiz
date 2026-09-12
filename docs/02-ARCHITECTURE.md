@@ -17,8 +17,8 @@
 | 마이그레이션 | Flyway                                            | Phase 2부터. Phase 1은 dev `update` / test `create-drop` (D-049) |
 | 인증         | Spring Security OAuth2 Client (Google)            | **Phase 1부터** (D-032)                                          |
 | 실시간       | Spring WebSocket + STOMP                          | Phase 4 (D-004)                                                  |
-| 프론트       | React 18 + TypeScript + Vite                      | D-003                                                            |
-| UI 킷        | Mantine 또는 shadcn/ui 중 **하나**                | CSS를 직접 쓰지 않기 위해                                        |
+| 프론트       | React + TypeScript + Vite `[개정됨 → D-058]`      | React 18로 적었으나 Vite 템플릿 기본 버전을 따른다               |
+| UI 킷        | **shadcn/ui** + Tailwind `[개정됨 → D-058]`       | Mantine과 둘 중 하나로 두었다가 정했다                           |
 | 미디어       | YouTube IFrame Player API                         | D-001                                                            |
 | 메타데이터   | YouTube Data API v3                               | D-034                                                            |
 
@@ -98,6 +98,7 @@ com.vocaquiz
 - `song_answer`는 파생 테이블이다. `SongAnswerPattern.pattern`이 바뀌면 `SongCatalogService`가 그 곡의 행을 다시 만든다 (D-052, D-056).
   **이 갱신을 빠뜨리면 자동완성에서 곡이 안 잡힌다.** 저장 경로를 한 곳으로 모을 것.
 - `song_vocal`도 파생이다. `video_vocal`이 바뀌고 그 영상이 `ORIGINAL`이면 다시 계산한다 (D-050).
+  영상의 곡 연결이나 `kind`가 바뀔 때도, 그 영상이 바뀌기 전이나 후에 `ORIGINAL`이면 관련 곡을 다시 계산한다 (D-059).
   파생이 둘이므로 각각의 갱신 경로를 한 곳에 모으고, 정합성 점검을 관리자에게 노출한다.
 - `segment.kind`는 **DB varchar + Java enum** (D-045). 알 수 없는 값은 로딩 시 예외.
 - `round.payload`/`progress`만 JSON이다. 기준은 D-045:
@@ -295,17 +296,41 @@ GET /api/v1/games/{gameId}/result
 
 ### 5.4 관리자 (Phase 1, D-030)
 
+곡과 영상은 따로 만들고 편집에서 연결한다 (D-059). 영상 메타데이터는 미수집으로 쌓았다가 한꺼번에 수집한다 (D-060).
+
 ```
-POST   /api/v1/admin/songs/preview   { "videoId":"..." }
-       → videos.list로 제목·설명문·길이·조회수·게시일·채널을 받아 초안 반환 (저장 안 함)
-POST   /api/v1/admin/songs           곡 + 이름들 + 프로듀서 + 보컬 + 언어 저장
-GET    /api/v1/admin/songs           목록 (검색, status 필터)
+영상
+POST   /api/v1/admin/videos                 { "videoId":"..." } → 미수집 영상 생성. 이미 있으면 409
+GET    /api/v1/admin/videos                 목록. 수집 상태 · 곡 없는 영상 필터
+GET    /api/v1/admin/videos/{id}
+PATCH  /api/v1/admin/videos/{id}            곡 연결 · kind · 보컬 · 크레딧
+POST   /api/v1/admin/videos/fetch           미수집 영상 일괄 수집 (수동 실행)
+POST   /api/v1/admin/videos/{id}/requeue    실패 → 미수집
+
+곡
+POST   /api/v1/admin/songs                  원제 언어 · 이름들 · 곡 언어 · 프로듀서 · 정답 패턴 · status
+GET    /api/v1/admin/songs                  목록. 검색어 · status · 정렬
+GET    /api/v1/admin/songs/{id}
+PUT    /api/v1/admin/songs/{id}
+POST   /api/v1/admin/answer-patterns/check  { "pattern":"..." } → 전개 결과 · 개수 · 20개 초과 경고 · 문법 오류 줄
+
+참조 목록
+GET    /api/v1/admin/languages
+GET    /api/v1/admin/producers?q=           자동완성
+POST   /api/v1/admin/producers              { "name":"..." } → 같은 이름이면 409 (D-063)
+GET    /api/v1/admin/vocals
+
+구간 (P1-4)
 GET    /api/v1/admin/videos/{id}/segments
 POST   /api/v1/admin/videos/{id}/segments   { kind, startSec, endSec, structureTag }
 DELETE /api/v1/admin/segments/{id}
 ```
 
-- 전부 `role = ADMIN`만 (D-032).
+- 전부 `role = ADMIN`만 (D-032). 로그인이 없으면 401, 권한이 없으면 403 (D-065).
+- 상태를 바꾸는 요청은 CSRF 토큰(`X-XSRF-TOKEN`)이 있어야 한다 (D-065).
+- videoId는 프론트가 URL에서 뽑는다 (`watch?v=` · `youtu.be/` · `shorts/`). API는 videoId만 받는다.
+- 곡 검색은 검색어를 `TextNormalizer`로 정규화해 `song_answer.normalized`와 부분 일치로 찾는다. 정답 패턴이 없는 곡은 검색되지 않는다. 목록은 최신순 · 오래된순 정렬과 "미작업" 표시(D-062의 빠진 조건)로 보여 준다.
+- PUBLISHED로 바꾸는 요청이 조건을 못 채우면 거부하고 빠진 조건 목록을 준다 (D-062).
 
 ---
 
@@ -440,6 +465,7 @@ API 스펙 변경 없음, 스키마 변경 없음, 다른 유형에 영향 없�
 ### 8.4 배치
 
 ```
+미수집 영상 수집  @Scheduled + 수동  videos.list (id 50개당 1 unit). D-060, 주기는 P1-3-3
 조회수 갱신     @Scheduled  하루 1회  videos.list (id 50개당 1 unit)
 채널 RSS 폴링   @Scheduled  6시간마다  쿼터 0
 vocaloard      @Scheduled  하루 1~3회  D-047. User-Agent에 연락처 명시
@@ -497,8 +523,8 @@ channel (watch = true)                       ← 사람이 켠다 (D-031)
   흔하고, 오판 시 서로 다른 곡이 합쳐져 정답 판정이 깨진다. 되돌리기도 어렵다.
 - **파이프라인은 "찾기"만 한다 (D-022).** 곡 수가 늘어도 콘텐츠는 즉시 안 는다.
   검수 대기열이 쌓이는 건 정상이며, 카탈로그 품질을 보장하는 대가다.
-- vocaloard 스크래퍼(D-035)는 **보컬 정보의 유일한 출처**다. Data API로 대체 불가.
-  1일 1~3회만 접속 (D-047).
+- vocaloard 스크래퍼(D-035)는 보컬 정보를 준다. Data API로는 얻을 수 없다.
+  Phase 1은 코드로 시드한 목록에서 사람이 고른다 (D-064). 1일 1~3회만 접속 (D-047).
 
 ---
 
@@ -560,6 +586,8 @@ channel (watch = true)                       ← 사람이 켠다 (D-031)
 - [ ] `game.owner_key`가 요청자와 일치하는지 확인했는가?
 - [ ] 이미 끝난 라운드에 `guess`가 오면 409로 거부하는가?
 - [ ] `/admin/**`이 `role = ADMIN`으로 막혀 있는가?
+- [ ] `/api/**`가 로그인이 없을 때 리다이렉트가 아니라 401을 돌려주는가? (D-065)
+- [ ] 상태를 바꾸는 요청이 CSRF 토큰 없이 통과하지 않는가? (D-065)
 - [ ] 데일리를 하루 두 번 시작할 수 있지 않은가? (DB 유니크 제약)
 
 **확장성 체크리스트 (설계 위반 감지):**
