@@ -264,6 +264,14 @@ cd frontend && npm run dev     # 프론트 5173, /api → 8080 프록시
 ./gradlew build
 ```
 
+처음 한 번, dev DB를 만든다. **콜레이션을 반드시 지정한다** (D-057).
+
+```sql
+CREATE DATABASE vocaquiz CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+```
+
+기본값(`utf8mb4_0900_ai_ci`)으로 만들면 가나·대소문자만 다른 값을 UNIQUE가 같은 것으로 막는다.
+
 비밀값은 `config/local.yaml`에 둔다. `.env`는 쓰지 않는다.
 `application-dev.yaml`이 `optional:file:./config/local.yaml`로 가져가고, **임포트된 파일이 임포트한 파일을 이긴다.**
 

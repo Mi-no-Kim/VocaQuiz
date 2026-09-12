@@ -604,9 +604,11 @@ channel (watch = true)                       ← 사람이 켠다 (D-031)
 
 - 백엔드: Fly.io / Railway / Oracle Cloud Free 중 **가장 빨리 뜨는 곳**
 - DB: 관리형 **MySQL** `[개정됨 → D-049]` (이전: 관리형 PostgreSQL)
+  → `CHARACTER SET utf8mb4 COLLATE utf8mb4_bin`으로 만든다 (D-057). 기본 콜레이션으로 만들면 UNIQUE가 가나·대소문자만 다른 값을 같은 것으로 막는다.
 - 프론트: Gradle 빌드 시 `npm run build` 결과를 `src/main/resources/static`으로 복사해 **통합 배포**
   → CORS·쿠키 문제가 사라진다. 1인 개발이라면 통합이 덜 아프다.
-- 환경변수: `YOUTUBE_API_KEY`, `OAUTH_*`, `DB_*`. 하드코딩 금지, `.env`는 `.gitignore`.
+- 환경변수: `YOUTUBE_API_KEY`, `OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GOOGLE_CLIENT_SECRET`, `ADMIN_EMAILS`, DB 접속 정보.
+  하드코딩 금지. 개발에서는 `config/local.yaml`이 같은 값을 채운다 (CLAUDE.md §7).
 
 ---
 
