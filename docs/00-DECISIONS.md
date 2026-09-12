@@ -640,6 +640,8 @@ start.spring.io가 제시하는 버전을 그대로 받았다. 3.x를 적었을 
 
 ### D-049 · 개발·운영은 MySQL, 테스트는 H2 `[확정]` 2026-09-07
 
+> ℹ️ **D-057로 보강.** DB를 만들 때 콜레이션을 `utf8mb4_bin`으로 지정한다.
+
 **`02-ARCHITECTURE.md` §1의 "개발 H2 → 운영 PostgreSQL"과 §13의 "관리형 PostgreSQL"을 뒤집는다.**
 
 MySQL이 더 익숙하고, 지금 따로 공부하고 있는 대상이기도 하다. 1인 개발에서는 DB의 기술적 차이보다 숙련도가 개발 속도를 더 좌우한다. PostgreSQL이 이 프로젝트에 필요한 무언가를 더 주는 것도 아니다.
@@ -801,6 +803,24 @@ song_answer            전개 + 정규화 결과. UNIQUE (song_id, normalized)
 `song_answer_pattern`에 언어를 더하면 된다.
 
 ---
+
+### D-057 · DB 기본 콜레이션은 `utf8mb4_bin` `[확정]` 2026-09-12
+
+**D-049를 보강한다.** MySQL을 쓴다는 결정은 그대로다.
+
+- MySQL 8의 기본 콜레이션 `utf8mb4_0900_ai_ci`는 악센트·대소문자·가나를 구분하지 않는다.
+  UNIQUE 인덱스도 이 규칙으로 비교하므로 `song_answer`의 `(song_id, normalized)`가 `ミク`와 `みく`를
+  같은 값으로 막는다. D-052가 권한 `(ミク|みく)` 패턴이 저장되지 않는다.
+- dev와 운영 DB를 `CHARACTER SET utf8mb4 COLLATE utf8mb4_bin`으로 만든다. 앱 코드는 바뀌지 않는다.
+- **대가:** `DECO*27`과 `deco*27`을 DB가 막지 않는다. 프로듀서 자동완성이 그 자리를 맡는다 (D-063).
+  정렬도 코드 포인트 순이 된다. 관리자 목록은 시간순이라 지금은 드러나지 않는다.
+- 테스트는 H2라 이 차이를 재현하지 못한다. **콜레이션 문제는 CI가 잡지 못한다**는 것을 알고 간다.
+
+| 선택지                                    | 비용                                                         | 채택 |
+| ----------------------------------------- | ------------------------------------------------------------ | ---- |
+| DB 기본 콜레이션을 `utf8mb4_bin`으로      | 코드 0. dev DB를 다시 만들어야 한다                          | ✅   |
+| 비교가 정확해야 하는 컬럼만 `utf8mb4_bin` | 컬럼마다 지정. H2가 같은 DDL을 받는지 확인해야 한다          |      |
+| 그대로 두고 앱에서 중복을 걸러낸다        | `ai_ci`의 동등 규칙을 Java로 재현해야 해서 사실상 불가능하다 |      |
 
 ### D-058 · UI 킷은 shadcn/ui, 모양은 Tailwind로 정한다 `[확정]` 2026-09-11
 
@@ -988,6 +1008,7 @@ song_answer            전개 + 정규화 결과. UNIQUE (song_id, normalized)
 | 2026-09-08 | **D-050 ~ D-055 추가.** `04-SCHEMA.md` §1을 새 모델로 다시 씀(`video_vocal` · `channel_producer` · `song_language` · `song_name_answer` · `song_credit` · `video_credit` 신설, `song_producer` 삭제). §6 출제 쿼리와 §7 표를 맞춤. `02-ARCHITECTURE.md` §3 · §5.1 · §7, `01-PRD.md` §3.7 필터 축 표, `03-PROMPTS.md` P1-2를 새 모델에 맞춤                                                                                                                                                                                                                      |
 | 2026-09-09 | **D-056 추가.** `04-SCHEMA.md` §1에서 `song_name.answer_pattern`을 떼어 `song_answer_pattern` · `song_answer` 두 테이블로 나눔. §6 자동완성 쿼리와 §7 표를 맞춤. `02-ARCHITECTURE.md` §3 · §5.1 · §7, `03-PROMPTS.md` P1-2의 엔티티 목록과 제약을 갱신                                                                                                                                                                                                                                                                                                          |
 | 2026-09-11 | **D-058 ~ D-065 추가** (D-057은 DB 콜레이션 건에 비워 둠). O-31 종결, O-34 ~ O-36 추가. `04-SCHEMA.md` §1 `producer` · `vocal_name` · `song` · `song_name` · `video`와 §6, `02-ARCHITECTURE.md` §1 · §3 · §5.4 · §8.4 · §10 · §12, `01-PRD.md` §6.1 · §6.3 · §7.5 · §8, `03-PROMPTS.md` P1-3 재작성과 P3-5, `CLAUDE.md` §2.4 · §5.2 · §5.3, `CONTRIBUTING.md` 스코프 규칙을 맞춤. 낡은 문장도 함께 고침 — `CLAUDE.md` §2.5(프로파일별 `ddl-auto`) · §7(`.env` → `config/local.yaml`), `04-SCHEMA.md` 머리말, `03-PROMPTS.md` P3-5의 `song_vocal`, 이 표의 빈 줄 |
+| 2026-09-12 | **D-057 추가.** `02-ARCHITECTURE.md` §13 배포(운영 DB 콜레이션·환경변수), `CLAUDE.md` §7에 dev DB 생성 명령, `04-SCHEMA.md`의 `producer` · `song_answer`에 비교 규칙을 적음                                                                                                                                                                                                                                                                                                                                                                                     |
 
 **현재 모든 문서가 이 결정 로그와 일치한다.**
 다음에 결정이 바뀌면 여기에 한 줄을 더하고, 어긋난 문서를 함께 고친다.
