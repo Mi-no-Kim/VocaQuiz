@@ -24,3 +24,16 @@ jobs:
       - uses: actions/checkout@v5
       - run: npm ci
       - run: npm run format:check
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm run build
