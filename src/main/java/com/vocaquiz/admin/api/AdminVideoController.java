@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/** 영상 추가·수집 (P1-3-3, D-059·D-060). */
+/** 영상 추가·수집 (D-059·D-060·D-066·D-069). */
 @RestController
 @RequestMapping("/api/v1/admin/videos")
 @RequiredArgsConstructor
@@ -39,7 +39,12 @@ public class AdminVideoController {
         return videos.stream().map(VideoResponse::from).toList();
     }
 
-    /** 미수집 최대 50개를 즉시 수집한다(동기). 이미 도는 중이면 409(D-060 결정 3). */
+    /**
+     * 대기 중인 미수집 영상을 즉시 수집한다(동기). 개수 제한 없이 전부 대상이고,
+     * videos.list 호출과 저장만 50개 묶음으로 끊어 돈다 (D-069).
+     *
+     * <p>이미 도는 중이면 409 (D-069).
+     */
     @PostMapping("/fetch")
     public ResponseEntity<Void> fetch() {
         videoIngestService.collectPendingManually();
