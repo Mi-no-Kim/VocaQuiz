@@ -29,11 +29,12 @@ public class AdminVideoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(VideoResponse.from(video));
     }
 
+    /** song이 없는 영상만 준다 — 곡에 붙은 순간부터는 영상 편집(P1-3-6) 화면의 몫이다. */
     @GetMapping
     public List<VideoResponse> list(@RequestParam(required = false) VideoCollectionStatus status) {
         List<Video> videos = status == null
-            ? videoRepository.findAllByOrderByIdDesc()
-            : videoRepository.findByCollectionStatusOrderByIdDesc(status);
+            ? videoRepository.findBySongIsNullOrderByIdDesc()
+            : videoRepository.findBySongIsNullAndCollectionStatusOrderByIdDesc(status);
         return videos.stream().map(VideoResponse::from).toList();
     }
 
