@@ -80,7 +80,8 @@ public class YoutubeDataClient {
             durationSec,
             viewCount,
             snippet.publishedAt(),
-            snippet.channelId()
+            snippet.channelId(),
+            snippet.channelTitle()
         );
     }
 }

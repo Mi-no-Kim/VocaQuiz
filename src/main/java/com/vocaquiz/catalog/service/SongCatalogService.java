@@ -88,6 +88,19 @@ public class SongCatalogService {
     }
 
     /**
+     * song_vocal을 다시 계산해야 하는 다른 경로에서 쓴다 — 예를 들어 영상 삭제(P1-3-3)처럼
+     * video_vocal 자체는 이미 지워졌고 곡 단위로 다시 계산만 하면 되는 경우.
+     *
+     * <p>{@link #replaceVideoVocals}는 "영상의 보컬이 바뀔 때"를, 이건 "영상 자체가
+     * 없어지는 등 그 밖의 이유로 다시 봐야 할 때"를 담당한다. 갱신 로직은
+     * {@link #rebuildSongVocals}로 하나뿐이다.
+     */
+    @Transactional
+    public void recalculateSongVocal(Long songId) {
+        rebuildSongVocals(songId);
+    }
+
+    /**
      * 정규화된 후보로 song_answer를 통째로 다시 만든다.
      *
      * <p>지우고 다시 넣는다 — song_answer의 id를 참조하는 곳이 없어 유지할 이유가 없다.

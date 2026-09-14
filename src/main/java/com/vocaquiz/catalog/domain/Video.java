@@ -24,8 +24,9 @@ public class Video extends CreatedAtEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** 곡 없이도 존재한다 (D-059). 편집(P1-3-6)에서 연결한다. */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "song_id", nullable = false)
+    @JoinColumn(name = "song_id")
     private Song song;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -35,7 +36,13 @@ public class Video extends CreatedAtEntity {
     @Column(length = 32, nullable = false)
     private String youtubeVideoId;
 
-    /** 출제 대상은 ORIGINAL로 제한한다 (D-055). song_vocal 재계산도 이 값을 본다 (D-050). */
+    /**
+     * 출제 대상은 ORIGINAL로 제한한다 (D-055). song_vocal 재계산도 이 값을 본다 (D-050).
+     * 등록 시점엔 모른다 — 영상 편집(P1-3-6)에서 사람이 고르기 전까지 {@link VideoKind#UNDEFINED}다
+     * (D-059, P1-3-3 결정 5 — null 대신 값을 두는 게 낫다는 피드백을 반영해 nullable 컬럼 대신
+     * sentinel enum 값으로 바꿨다. 컬럼 자체는 그대로 NOT NULL이라 기존 값(전부 ORIGINAL)에도
+     * 영향이 없다).
+     */
     @Column(length = 32, nullable = false)
     @Enumerated(value = EnumType.STRING)
     private VideoKind kind;
@@ -44,8 +51,13 @@ public class Video extends CreatedAtEntity {
     @Column(nullable = false)
     private boolean playable;
 
-    @Column(nullable = false)
-    private int durationSec;
+    /** videos.list 수집 상태 (D-060). DB는 varchar, 서버는 enum (D-045와 같은 방식). */
+    @Column(length = 20, nullable = false)
+    @Enumerated(value = EnumType.STRING)
+    private VideoCollectionStatus collectionStatus;
+
+    /** 수집 전에는 NULL이다 (D-060). */
+    private Integer durationSec;
 
     private Long viewCount;
 
@@ -57,6 +69,7 @@ public class Video extends CreatedAtEntity {
 
     private Instant publishedAt;
 
+    /** 곡·채널·길이를 이미 아는 상태로 바로 만든다 — 지금은 테스트에서만 쓴다. */
     public static Video create(
         Song song,
         Channel channel,
@@ -75,13 +88,61 @@ public class Video extends CreatedAtEntity {
         video.publishedAt = publishedAt;
         video.titleSnapshot = titleSnapshot;
         video.playable = true;
+        video.collectionStatus = VideoCollectionStatus.COLLECTED;
 
         return video;
+    }
+
+    /** URL(videoId)만 받고 만드는 미수집 영상 (P1-3-3, D-059·D-060). song·channel·kind·길이는 아직 없다. */
+    public static Video createUncollected(String youtubeVideoId) {
+        Video video = new Video();
+        video.youtubeVideoId = youtubeVideoId;
+        video.kind = VideoKind.UNDEFINED;
+        video.playable = true;
+        video.collectionStatus = VideoCollectionStatus.UNCOLLECTED;
+
+        return video;
+    }
+
+    /** videos.list 응답으로 메타데이터를 채운다. 채널도 여기서 함께 연결한다. */
+    public void markCollected(Channel channel, int durationSec, Instant publishedAt, String titleSnapshot, Long viewCount) {
+        this.channel = channel;
+        this.durationSec = durationSec;
+        this.publishedAt = publishedAt;
+        this.titleSnapshot = titleSnapshot;
+        this.viewCount = viewCount;
+        this.statsUpdatedAt = Instant.now();
+        this.collectionStatus = VideoCollectionStatus.COLLECTED;
+    }
+
+    /** videos.list 응답에 이 id가 없었다 (삭제·비공개 등, D-060). */
+    public void markFailed() {
+        this.collectionStatus = VideoCollectionStatus.FAILED;
+    }
+
+    /** FAILED → UNCOLLECTED. [다시 대기] 버튼. */
+    public void requeue() {
+        this.collectionStatus = VideoCollectionStatus.UNCOLLECTED;
+    }
+
+    /** 어떤 상태에서든 → EXCLUDED (P1-3-3 결정 1). 이후 배치·수동 수집이 다시 건드리지 않는다. */
+    public void exclude() {
+        this.collectionStatus = VideoCollectionStatus.EXCLUDED;
     }
 
     /** 조회수는 하루 1회 배치로 갱신한다 (D-034). 등록 직후에도 한 번 부른다. */
     public void updateStats(Long viewCount) {
         this.viewCount = viewCount;
         this.statsUpdatedAt = Instant.now();
+    }
+
+    /** 출제 목록에서 뺀다 (D-010). 되돌리려면 {@link #enablePlayable()}. */
+    public void disablePlayable() {
+        this.playable = false;
+    }
+
+    /** 다시 출제 대상으로 켠다. */
+    public void enablePlayable() {
+        this.playable = true;
     }
 }

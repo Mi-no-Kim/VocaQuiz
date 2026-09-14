@@ -9,6 +9,7 @@ public record VideoInfo(
     int durationSec,
     Long viewCount,
     Instant publishedAt,
-    String channelId
+    String channelId,
+    String channelTitle
 ) {
 }
