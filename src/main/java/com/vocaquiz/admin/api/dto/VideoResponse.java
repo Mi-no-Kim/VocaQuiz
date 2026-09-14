@@ -17,7 +17,8 @@ public record VideoResponse(
     Integer durationSec,
     Long viewCount,
     Instant publishedAt,
-    String channelName
+    String channelName,
+    String excludeReason
 ) {
     public static VideoResponse from(Video video) {
         return new VideoResponse(
@@ -31,7 +32,8 @@ public record VideoResponse(
             video.getDurationSec(),
             video.getViewCount(),
             video.getPublishedAt(),
-            video.getChannel() != null ? video.getChannel().getName() : null
+            video.getChannel() != null ? video.getChannel().getName() : null,
+            video.getExcludeReason()
         );
     }
 }

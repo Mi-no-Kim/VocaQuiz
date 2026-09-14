@@ -25,10 +25,13 @@ public interface VideoRepository extends JpaRepository<Video, Long> {
      */
     List<Video> findByCollectionStatusOrderByIdAsc(VideoCollectionStatus collectionStatus);
 
-    /** 관리자 목록. channel을 같이 가져와 화면에서 지연 로딩 예외가 나지 않게 한다. */
+    /**
+     * 관리자 목록(P1-3-3 화면) — song이 없는 영상만. 곡에 연결된 순간부터는 이 화면이
+     * 아니라 영상 편집(P1-3-6) 화면의 관할이다. channel도 같이 가져와 지연 로딩 예외를 막는다.
+     */
     @EntityGraph(attributePaths = "channel")
-    List<Video> findAllByOrderByIdDesc();
+    List<Video> findBySongIsNullOrderByIdDesc();
 
     @EntityGraph(attributePaths = "channel")
-    List<Video> findByCollectionStatusOrderByIdDesc(VideoCollectionStatus collectionStatus);
+    List<Video> findBySongIsNullAndCollectionStatusOrderByIdDesc(VideoCollectionStatus collectionStatus);
 }

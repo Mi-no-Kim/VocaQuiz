@@ -1,6 +1,7 @@
 package com.vocaquiz.admin.api;
 
 import com.vocaquiz.admin.api.dto.AddVideoRequest;
+import com.vocaquiz.admin.api.dto.ExcludeVideoRequest;
 import com.vocaquiz.admin.api.dto.VideoResponse;
 import com.vocaquiz.catalog.domain.Video;
 import com.vocaquiz.catalog.domain.VideoCollectionStatus;
@@ -29,11 +30,12 @@ public class AdminVideoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(VideoResponse.from(video));
     }
 
+    /** song이 없는 영상만 준다 — 곡에 붙은 순간부터는 영상 편집(P1-3-6) 화면의 몫이다. */
     @GetMapping
     public List<VideoResponse> list(@RequestParam(required = false) VideoCollectionStatus status) {
         List<Video> videos = status == null
-            ? videoRepository.findAllByOrderByIdDesc()
-            : videoRepository.findByCollectionStatusOrderByIdDesc(status);
+            ? videoRepository.findBySongIsNullOrderByIdDesc()
+            : videoRepository.findBySongIsNullAndCollectionStatusOrderByIdDesc(status);
         return videos.stream().map(VideoResponse::from).toList();
     }
 
@@ -51,8 +53,15 @@ public class AdminVideoController {
     }
 
     @PostMapping("/{id}/exclude")
-    public ResponseEntity<Void> exclude(@PathVariable Long id) {
-        videoIngestService.exclude(id);
+    public ResponseEntity<Void> exclude(@PathVariable Long id, @RequestBody @Valid ExcludeVideoRequest request) {
+        videoIngestService.exclude(id, request.reason());
+        return ResponseEntity.ok().build();
+    }
+
+    /** EXCLUDED 취소. */
+    @PostMapping("/{id}/restore")
+    public ResponseEntity<Void> restore(@PathVariable Long id) {
+        videoIngestService.restore(id);
         return ResponseEntity.ok().build();
     }
 

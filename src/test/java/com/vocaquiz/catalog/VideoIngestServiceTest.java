@@ -107,14 +107,43 @@ class VideoIngestServiceTest {
     }
 
     @Test
-    @DisplayName("결정 1 — 제외된 영상은 EXCLUDED가 된다")
+    @DisplayName("결정 1 — 제외된 영상은 EXCLUDED가 되고 사유가 저장된다")
     void excludeMarksVideoExcluded() {
         Video video = videoRepository.save(Video.createUncollected("exclude_id"));
 
-        videoIngestService.exclude(video.getId());
+        videoIngestService.exclude(video.getId(), "노래 아님");
 
-        assertThat(videoRepository.findById(video.getId()).orElseThrow().getCollectionStatus())
-            .isEqualTo(VideoCollectionStatus.EXCLUDED);
+        Video after = videoRepository.findById(video.getId()).orElseThrow();
+        assertThat(after.getCollectionStatus()).isEqualTo(VideoCollectionStatus.EXCLUDED);
+        assertThat(after.getExcludeReason()).isEqualTo("노래 아님");
+    }
+
+    @Test
+    @DisplayName("피드백 — 제외된 적 없는(한 번도 수집 안 된) 영상을 복구하면 UNCOLLECTED가 된다")
+    void restoreNeverCollectedVideoGoesToUncollected() {
+        Video video = videoRepository.save(Video.createUncollected("restore_uncollected_id"));
+        videoIngestService.exclude(video.getId(), "일단 제외");
+
+        videoIngestService.restore(video.getId());
+
+        Video after = videoRepository.findById(video.getId()).orElseThrow();
+        assertThat(after.getCollectionStatus()).isEqualTo(VideoCollectionStatus.UNCOLLECTED);
+        assertThat(after.getExcludeReason()).isNull();
+    }
+
+    @Test
+    @DisplayName("피드백 — 예전에 수집된 적 있는 영상을 복구하면 다시 조회하지 않고 COLLECTED가 된다")
+    void restorePreviouslyCollectedVideoGoesToCollected() {
+        Video video = videoRepository.save(Video.createUncollected("restore_collected_id"));
+        video.markCollected(null, 180, Instant.now(), "제목", 1000L);
+        videoRepository.save(video);
+        videoIngestService.exclude(video.getId(), "확인 필요");
+
+        videoIngestService.restore(video.getId());
+
+        Video after = videoRepository.findById(video.getId()).orElseThrow();
+        assertThat(after.getCollectionStatus()).isEqualTo(VideoCollectionStatus.COLLECTED);
+        assertThat(after.getExcludeReason()).isNull();
     }
 
     @Test

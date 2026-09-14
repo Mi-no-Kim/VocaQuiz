@@ -90,8 +90,14 @@ public class VideoIngestService {
 
     /** 어떤 상태에서든 → EXCLUDED (P1-3-3 결정 1). 배치·수동 수집이 이후 다시 건드리지 않는다. */
     @Transactional
-    public void exclude(Long videoId) {
-        loadVideo(videoId).exclude();
+    public void exclude(Long videoId, String reason) {
+        loadVideo(videoId).exclude(reason);
+    }
+
+    /** EXCLUDED를 취소한다. 상세 판단 기준은 {@link Video#restore()} 참고. */
+    @Transactional
+    public void restore(Long videoId) {
+        loadVideo(videoId).restore();
     }
 
     /** 출제 목록에서 뺀다 (D-010). */
