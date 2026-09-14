@@ -1,6 +1,7 @@
 package com.vocaquiz.admin.api;
 
 import com.vocaquiz.admin.api.dto.AddVideoRequest;
+import com.vocaquiz.admin.api.dto.ExcludeVideoRequest;
 import com.vocaquiz.admin.api.dto.VideoResponse;
 import com.vocaquiz.catalog.domain.Video;
 import com.vocaquiz.catalog.domain.VideoCollectionStatus;
@@ -52,8 +53,15 @@ public class AdminVideoController {
     }
 
     @PostMapping("/{id}/exclude")
-    public ResponseEntity<Void> exclude(@PathVariable Long id) {
-        videoIngestService.exclude(id);
+    public ResponseEntity<Void> exclude(@PathVariable Long id, @RequestBody @Valid ExcludeVideoRequest request) {
+        videoIngestService.exclude(id, request.reason());
+        return ResponseEntity.ok().build();
+    }
+
+    /** EXCLUDED 취소. */
+    @PostMapping("/{id}/restore")
+    public ResponseEntity<Void> restore(@PathVariable Long id) {
+        videoIngestService.restore(id);
         return ResponseEntity.ok().build();
     }
 

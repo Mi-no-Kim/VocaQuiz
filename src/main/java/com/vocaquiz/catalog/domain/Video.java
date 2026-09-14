@@ -69,6 +69,10 @@ public class Video extends CreatedAtEntity {
 
     private Instant publishedAt;
 
+    /** {@link #exclude(String)}에서만 채워진다. {@link #restore()}하면 비운다. */
+    @Column(length = 500)
+    private String excludeReason;
+
     /** 곡·채널·길이를 이미 아는 상태로 바로 만든다 — 지금은 테스트에서만 쓴다. */
     public static Video create(
         Song song,
@@ -126,8 +130,21 @@ public class Video extends CreatedAtEntity {
     }
 
     /** 어떤 상태에서든 → EXCLUDED (P1-3-3 결정 1). 이후 배치·수동 수집이 다시 건드리지 않는다. */
-    public void exclude() {
+    public void exclude(String reason) {
         this.collectionStatus = VideoCollectionStatus.EXCLUDED;
+        this.excludeReason = reason;
+    }
+
+    /**
+     * EXCLUDED를 취소한다. 제외되기 전 정확한 상태는 기록해 두지 않으므로, 길이가
+     * 있으면(=한 번이라도 수집됐던 적이 있으면) COLLECTED로, 없으면 UNCOLLECTED로
+     * 되돌린다 — 다음 배치가 불필요하게 다시 조회하지 않도록.
+     */
+    public void restore() {
+        this.collectionStatus = this.durationSec != null
+            ? VideoCollectionStatus.COLLECTED
+            : VideoCollectionStatus.UNCOLLECTED;
+        this.excludeReason = null;
     }
 
     /** 조회수는 하루 1회 배치로 갱신한다 (D-034). 등록 직후에도 한 번 부른다. */
