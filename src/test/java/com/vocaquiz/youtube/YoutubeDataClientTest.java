@@ -73,6 +73,7 @@ public class YoutubeDataClientTest {
         assertThat(v.durationSec()).isEqualTo(157);
         assertThat(v.viewCount()).isEqualTo(220486285L);
         assertThat(v.channelId()).isEqualTo("UCtmi2O7lp0C_i53hFIExAaA");
+        assertThat(v.channelTitle()).isEqualTo("サツキ");
         assertThat(v.description()).contains("■Vocal / 初音ミク・重音テトSV");
 
         server.verify();
