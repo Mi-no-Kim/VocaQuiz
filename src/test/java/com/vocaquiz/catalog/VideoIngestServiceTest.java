@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -190,6 +191,51 @@ class VideoIngestServiceTest {
 
         assertThat(videoRepository.findByCollectionStatusOrderByIdAsc(VideoCollectionStatus.COLLECTED))
             .hasSize(total);
+    }
+
+    /**
+     * 되돌아온 버그 (D-069). {@code collectPending()}이 대기 중인 것을 전부 모아 한 번에
+     * 넘기고 그 결과를 나중에 저장하기 때문에, 호출 하나가 실패하면 <b>저장이 시작되기도
+     * 전에</b> 예외가 올라가 앞서 받아 둔 응답까지 통째로 버려진다.
+     *
+     * <p>목은 실제 클라이언트를 흉내 낸다 — 한 번에 50개까지만 받고, 두 번째 호출은
+     * 실패한다. 고치기 전에는 이 테스트가 단언에 닿지도 못하고 {@code ApiException}을
+     * 그대로 받는다. 그게 "저장을 시작조차 안 했다"는 증거다.
+     */
+    @Test
+    @DisplayName("D-069 — 뒷 묶음 호출이 실패해도 앞 묶음은 저장된다")
+    void keepsEarlierChunksWhenLaterCallFails() {
+        savePending(55);
+
+        AtomicInteger calls = new AtomicInteger();
+        when(youtubeDataClient.fetchVideos(anyList())).thenAnswer(invocation -> {
+            List<String> ids = invocation.getArgument(0);
+            if (ids.size() > 50 || calls.incrementAndGet() == 2) {
+                throw new ApiException(ErrorCode.EXTERNAL_API_ERROR, "쿼터 초과");
+            }
+            return collectedInfoOf(ids);
+        });
+
+        videoIngestService.collectPendingManually();
+
+        assertThat(videoRepository.findByCollectionStatusOrderByIdAsc(VideoCollectionStatus.COLLECTED))
+            .hasSize(50);
+        // 실패한 묶음은 FAILED가 아니라 UNCOLLECTED로 남아야 다음 실행이 다시 시도한다.
+        // FAILED는 "응답에 그 id가 없었다"는 뜻이라 호출 실패와 섞으면 안 된다 (D-060·D-066).
+        assertThat(videoRepository.findByCollectionStatusOrderByIdAsc(VideoCollectionStatus.UNCOLLECTED))
+            .hasSize(5);
+    }
+
+    private void savePending(int count) {
+        IntStream.range(0, count)
+            .mapToObj(i -> "bulk_id_" + i)
+            .forEach(id -> videoRepository.save(Video.createUncollected(id)));
+    }
+
+    private List<VideoInfo> collectedInfoOf(List<String> ids) {
+        return ids.stream()
+            .map(id -> new VideoInfo(id, "제목", "설명", 100, 10L, Instant.now(), "UCxxxx", "채널명"))
+            .toList();
     }
 
     @Test
