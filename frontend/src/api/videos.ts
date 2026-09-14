@@ -20,7 +20,7 @@ export function addVideo(youtubeVideoId: string): Promise<VideoResponse> {
   });
 }
 
-/** 미수집 전체를 즉시 수집한다. 이미 도는 중이면 409(COLLECTION_IN_PROGRESS). */
+/** 대기 중인 미수집 영상을 전부 수집한다(50개 묶음, D-069). 이미 도는 중이면 409(COLLECTION_IN_PROGRESS). */
 export function collectPendingVideos(): Promise<void> {
   return apiFetch<void>(`${BASE}/fetch`, { method: "POST" });
 }

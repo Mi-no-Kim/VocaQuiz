@@ -13,6 +13,7 @@ import com.vocaquiz.common.error.ErrorCode;
 import com.vocaquiz.youtube.YoutubeDataClient;
 import com.vocaquiz.youtube.dto.VideoInfo;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,19 +25,20 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 영상 URL 등록과 메타데이터 일괄 수집 (P1-3-3, D-059·D-060).
+ * 영상 URL 등록과 메타데이터 일괄 수집 (D-059·D-060·D-066·D-069).
  *
  * <p>등록은 URL(videoId)만 받아 {@link VideoCollectionStatus#UNCOLLECTED}로 쌓는다.
  * 실제 메타데이터는 {@link #collectPendingManually()}([지금 수집] 버튼)와
- * {@link #collectPendingScheduled()}(매일 오전 9시 KST, P1-3-3 결정 2)가 채운다.
+ * {@link #collectPendingScheduled()}(매일 오전 9시 KST, D-069)가 채운다.
  *
- * <p><b>동시 실행 (P1-3-3 결정 3):</b> 둘은 같은 락({@link #collecting})을 쓴다.
+ * <p><b>동시 실행 (D-069):</b> 둘은 같은 락({@link #collecting})을 쓴다.
  * 스케줄이 락을 못 잡으면(수동이 도는 중) 보여줄 응답 대상이 없으므로 조용히
  * 이번 틱을 건너뛴다. 수동이 락을 못 잡으면(스케줄이 도는 중) 컨트롤러가 409를
  * 돌려준다 — 어느 쪽이 "두 번째로 왔느냐"만 다르게 반응하는 대칭적인 락이다.
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class VideoIngestService {
 
     private final VideoRepository videoRepository;
@@ -69,7 +71,7 @@ public class VideoIngestService {
         }
     }
 
-    /** 매일 오전 9시(KST) 1회 (P1-3-3 결정 2). 이미 도는 중이면 조용히 건너뛰고 다음 날을 기다린다. */
+    /** 매일 오전 9시(KST) 1회 (D-069). 이미 도는 중이면 조용히 건너뛰고 다음 날을 기다린다. */
     @Scheduled(cron = "0 0 9 * * *", zone = "Asia/Seoul")
     public void collectPendingScheduled() {
         if (!collecting.compareAndSet(false, true)) {
@@ -88,7 +90,7 @@ public class VideoIngestService {
         loadVideo(videoId).requeue();
     }
 
-    /** 어떤 상태에서든 → EXCLUDED (P1-3-3 결정 1). 배치·수동 수집이 이후 다시 건드리지 않는다. */
+    /** 어떤 상태에서든 → EXCLUDED (D-066). 배치·수동 수집이 이후 다시 건드리지 않는다. */
     @Transactional
     public void exclude(Long videoId, String reason) {
         loadVideo(videoId).exclude(reason);
@@ -113,7 +115,7 @@ public class VideoIngestService {
     }
 
     /**
-     * 영상을 지운다. 곡에 붙어 있어도 지운다 (P1-3-3 결정 4).
+     * 영상을 지운다. 곡에 붙어 있어도 지운다 (D-068).
      *
      * <p>video_credit·video_vocal을 먼저 지우고, 지우려는 영상이 ORIGINAL이면서
      * 곡에 붙어 있었다면 지운 뒤에 그 곡의 song_vocal을 다시 계산한다 — D-050이 정한
@@ -145,29 +147,53 @@ public class VideoIngestService {
     }
 
     /**
-     * 대기 중인 미수집 영상을 전부 videos.list로 조회해 채운다.
+     * 대기 중인 미수집 영상을 videos.list로 조회해 채운다 (D-069).
      *
-     * <p>id 50개당 1회 호출 제한은 {@link YoutubeDataClient#fetchVideos}가 내부에서
-     * 알아서 나눠 부르므로, 여기서는 대상 전체를 한 번에 넘긴다 — 50이라는 숫자를
-     * 이 클래스가 알 필요는 없다.
+     * <p><b>묶음 단위로 끊어서 조회하고 곧바로 저장한다.</b> 예전에는 대기 중인 것을
+     * 전부 모아 한 번에 넘기고 그 결과를 나중에 저장했는데, 그러면 마지막 호출 하나가
+     * 실패했을 때 <b>앞서 성공한 묶음까지 통째로 버려졌다</b> — 저장이 시작되기도 전에
+     * 예외가 올라갔기 때문이다. 묶음마다 저장을 끝내 두면 120개 중 뒷 묶음이 실패해도
+     * 앞 묶음은 남는다.
+     *
+     * <p>묶음 크기는 {@link YoutubeDataClient#MAX_IDS_PER_CALL}을 그대로 쓴다. 이 숫자는
+     * videos.list의 호출당 id 제한이자 이제 저장·재시도 단위이기도 하다.
      *
      * <p>외부 호출을 트랜잭션 밖에서 먼저 한다 (TIL 2026-09-11과 같은 원리) — 실패해도
-     * DB 상태를 아무것도 바꾸지 않는다. 응답에 없는 id(삭제·비공개 등)는 FAILED로
-     * 둔다 (D-060).
+     * DB 상태를 아무것도 바꾸지 않는다.
      */
     private void collectPending() {
         List<Video> pending = videoRepository.findByCollectionStatusOrderByIdAsc(VideoCollectionStatus.UNCOLLECTED);
-        if (pending.isEmpty()) {
+
+        for (int from = 0; from < pending.size(); from += YoutubeDataClient.MAX_IDS_PER_CALL) {
+            int to = Math.min(from + YoutubeDataClient.MAX_IDS_PER_CALL, pending.size());
+            collectChunk(pending.subList(from, to));
+        }
+    }
+
+    /**
+     * 묶음 하나를 조회해 반영한다.
+     *
+     * <p>호출이 실패하면 이 묶음만 포기하고 다음 묶음으로 넘어간다 — 이 묶음의 영상들은
+     * UNCOLLECTED로 남아 다음 실행이 다시 시도한다. 여기서 예외를 삼키는 건 "일어날 리
+     * 없는 케이스"를 감싸는 게 아니라, <b>부분 실패를 부분 실패로 끝내기 위한</b> 것이다
+     * (D-069). 대신 조용히 사라지지 않도록 반드시 남긴다.
+     *
+     * <p>응답에 없는 id(삭제·비공개 등)는 호출 실패와 다르다 — 그건 FAILED로 확정한다
+     * (D-060·D-066). 둘을 섞으면 멀쩡한 영상이 FAILED로 찍힌다.
+     */
+    private void collectChunk(List<Video> chunk) {
+        List<VideoInfo> fetched;
+        try {
+            fetched = youtubeDataClient.fetchVideos(chunk.stream().map(Video::getYoutubeVideoId).toList());
+        } catch (ApiException e) {
+            log.warn("videos.list 묶음 실패 — {}건을 UNCOLLECTED로 남긴다: {}", chunk.size(), e.getMessage());
             return;
         }
-
-        List<String> ids = pending.stream().map(Video::getYoutubeVideoId).toList();
-        List<VideoInfo> fetched = youtubeDataClient.fetchVideos(ids);
 
         Map<String, VideoInfo> byYoutubeId = fetched.stream()
             .collect(Collectors.toMap(VideoInfo::youtubeVideoId, Function.identity()));
 
-        for (Video video : pending) {
+        for (Video video : chunk) {
             applyResult(video, byYoutubeId.get(video.getYoutubeVideoId()));
         }
     }
@@ -179,7 +205,7 @@ public class VideoIngestService {
      * <p>일부러 이 메서드에 {@code @Transactional}을 달지 않는다. 같은 클래스 안에서
      * {@code this.applyResult(...)}로 부르면 self-invocation이라 프록시를 안 거쳐
      * 트랜잭션이 아예 안 걸린다 — 대신 각 저장을 {@code save()} 한 번의 독립된
-     * 트랜잭션으로 둔다. 한 곡이 실패해도 앞서 저장된 것들은 그대로 남는 편이
+     * 트랜잭션으로 둔다. 한 영상이 실패해도 앞서 저장된 것들은 그대로 남는 편이
      * 배치 성격에 맞다.
      */
     private void applyResult(Video video, VideoInfo info) {

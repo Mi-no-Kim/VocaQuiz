@@ -19,12 +19,14 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,7 +35,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.when;
 
 /**
- * P1-3-3 완료 기준 2·3·4, 결정 3(동시 수집 처리)을 검증한다.
+ * P1-3-3 완료 기준 2·3·4와 D-069(묶음 수집·부분 실패·동시 실행)를 검증한다.
  *
  * <p>{@code YoutubeDataClient}는 목이다 — 여기서 검증하는 건 videos.list 응답의
  * 파싱이 아니라 {@link VideoIngestService}의 상태 전이·동시성 로직이다. 파싱 자체는
@@ -107,7 +109,7 @@ class VideoIngestServiceTest {
     }
 
     @Test
-    @DisplayName("결정 1 — 제외된 영상은 EXCLUDED가 되고 사유가 저장된다")
+    @DisplayName("D-066 — 제외된 영상은 EXCLUDED가 되고 사유가 저장된다")
     void excludeMarksVideoExcluded() {
         Video video = videoRepository.save(Video.createUncollected("exclude_id"));
 
@@ -147,7 +149,7 @@ class VideoIngestServiceTest {
     }
 
     @Test
-    @DisplayName("피드백 — 등록 직후 kind는 null이 아니라 UNDEFINED다")
+    @DisplayName("D-067 — 등록 직후 kind는 null이 아니라 UNDEFINED다")
     void newVideoStartsWithUndefinedKind() {
         Video video = videoIngestService.addVideo("undefined_kind_id");
 
@@ -168,32 +170,73 @@ class VideoIngestServiceTest {
     }
 
     @Test
-    @DisplayName("피드백 — 대기 중인 영상이 50개를 넘어도 전부 수집 대상이다")
-    void collectsMoreThanFiftyPendingAtOnce() {
+    @DisplayName("D-069 — 대기 중인 영상이 50개를 넘으면 50개 묶음으로 나눠 부르고 전부 수집한다")
+    void collectsInChunksOfFifty() {
         int total = 55;
-        IntStream.range(0, total)
-            .mapToObj(i -> "bulk_id_" + i)
-            .forEach(id -> videoRepository.save(Video.createUncollected(id)));
+        savePending(total);
 
+        List<Integer> chunkSizes = new ArrayList<>();
         when(youtubeDataClient.fetchVideos(anyList())).thenAnswer(invocation -> {
-            @SuppressWarnings("unchecked")
-            List<String> ids = (List<String>) invocation.getArgument(0);
-            // 넘어온 id 개수 자체가 이 테스트의 핵심 — 서비스가 50개로 자르지 않고
-            // 전부 한 번에 YoutubeDataClient에 넘기는지 확인한다.
-            assertThat(ids).hasSize(total);
-            return ids.stream()
-                .map(id -> new VideoInfo(id, "제목", "설명", 100, 10L, Instant.now(), "UCxxxx", "채널명"))
-                .toList();
+            List<String> ids = invocation.getArgument(0);
+            chunkSizes.add(ids.size());
+            return collectedInfoOf(ids);
+        });
+
+        videoIngestService.collectPendingManually();
+
+        assertThat(chunkSizes).containsExactly(YoutubeDataClient.MAX_IDS_PER_CALL, 5);
+        assertThat(videoRepository.findByCollectionStatusOrderByIdAsc(VideoCollectionStatus.COLLECTED))
+            .hasSize(total);
+    }
+
+    /**
+     * 되돌아온 버그 (D-069). {@code collectPending()}이 대기 중인 것을 전부 모아 한 번에
+     * 넘기고 그 결과를 나중에 저장하기 때문에, 호출 하나가 실패하면 <b>저장이 시작되기도
+     * 전에</b> 예외가 올라가 앞서 받아 둔 응답까지 통째로 버려진다.
+     *
+     * <p>목은 실제 클라이언트를 흉내 낸다 — 한 번에
+     * {@link YoutubeDataClient#MAX_IDS_PER_CALL}개까지만 받고, 두 번째 호출은 실패한다.
+     * 고치기 전에는 이 테스트가 단언에 닿지도 못하고 {@code ApiException}을 그대로 받는다.
+     * 그게 "저장을 시작조차 안 했다"는 증거다.
+     */
+    @Test
+    @DisplayName("D-069 — 뒷 묶음 호출이 실패해도 앞 묶음은 저장된다")
+    void keepsEarlierChunksWhenLaterCallFails() {
+        savePending(55);
+
+        AtomicInteger calls = new AtomicInteger();
+        when(youtubeDataClient.fetchVideos(anyList())).thenAnswer(invocation -> {
+            List<String> ids = invocation.getArgument(0);
+            if (ids.size() > YoutubeDataClient.MAX_IDS_PER_CALL || calls.incrementAndGet() == 2) {
+                throw new ApiException(ErrorCode.EXTERNAL_API_ERROR, "쿼터 초과");
+            }
+            return collectedInfoOf(ids);
         });
 
         videoIngestService.collectPendingManually();
 
         assertThat(videoRepository.findByCollectionStatusOrderByIdAsc(VideoCollectionStatus.COLLECTED))
-            .hasSize(total);
+            .hasSize(YoutubeDataClient.MAX_IDS_PER_CALL);
+        // 실패한 묶음은 FAILED가 아니라 UNCOLLECTED로 남아야 다음 실행이 다시 시도한다.
+        // FAILED는 "응답에 그 id가 없었다"는 뜻이라 호출 실패와 섞으면 안 된다 (D-060·D-066).
+        assertThat(videoRepository.findByCollectionStatusOrderByIdAsc(VideoCollectionStatus.UNCOLLECTED))
+            .hasSize(5);
+    }
+
+    private void savePending(int count) {
+        IntStream.range(0, count)
+            .mapToObj(i -> "bulk_id_" + i)
+            .forEach(id -> videoRepository.save(Video.createUncollected(id)));
+    }
+
+    private List<VideoInfo> collectedInfoOf(List<String> ids) {
+        return ids.stream()
+            .map(id -> new VideoInfo(id, "제목", "설명", 100, 10L, Instant.now(), "UCxxxx", "채널명"))
+            .toList();
     }
 
     @Test
-    @DisplayName("결정 3 — 수집이 도는 중에 수동으로 다시 요청하면 409")
+    @DisplayName("D-069 — 수집이 도는 중에 수동으로 다시 요청하면 409")
     void rejectsConcurrentManualCollection() throws Exception {
         videoRepository.save(Video.createUncollected("slow_id"));
 
