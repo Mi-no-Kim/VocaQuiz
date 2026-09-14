@@ -102,18 +102,6 @@ public class VideoIngestService {
         loadVideo(videoId).restore();
     }
 
-    /** 출제 목록에서 뺀다 (D-010). */
-    @Transactional
-    public void disablePlayable(Long videoId) {
-        loadVideo(videoId).disablePlayable();
-    }
-
-    /** 다시 출제 대상으로 켠다. */
-    @Transactional
-    public void enablePlayable(Long videoId) {
-        loadVideo(videoId).enablePlayable();
-    }
-
     /**
      * 영상을 지운다. 곡에 붙어 있어도 지운다 (D-068).
      *

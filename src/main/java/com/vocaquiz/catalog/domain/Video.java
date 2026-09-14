@@ -39,7 +39,7 @@ public class Video extends CreatedAtEntity {
     /**
      * 출제 대상은 ORIGINAL로 제한한다 (D-055). song_vocal 재계산도 이 값을 본다 (D-050).
      * 등록 시점엔 모른다 — 영상 편집(P1-3-6)에서 사람이 고르기 전까지 {@link VideoKind#UNDEFINED}다
-     * (D-059, P1-3-3 결정 5 — null 대신 값을 두는 게 낫다는 피드백을 반영해 nullable 컬럼 대신
+     * (D-067 — null 대신 값을 두는 게 낫다는 판단으로 nullable 컬럼 대신
      * sentinel enum 값으로 바꿨다. 컬럼 자체는 그대로 NOT NULL이라 기존 값(전부 ORIGINAL)에도
      * 영향이 없다).
      */
@@ -47,7 +47,11 @@ public class Video extends CreatedAtEntity {
     @Enumerated(value = EnumType.STRING)
     private VideoKind kind;
 
-    /** 출제 필터는 이것만 본다 (D-010). */
+    /**
+     * 출제 필터는 이것만 본다 (D-010). 등록 시 true로 시작한다.
+     *
+     * <p>끄고 켜는 기능은 영상 편집(P1-3-6)의 몫이라 지금은 이 값을 바꾸는 메서드가 없다.
+     */
     @Column(nullable = false)
     private boolean playable;
 
@@ -73,7 +77,18 @@ public class Video extends CreatedAtEntity {
     @Column(length = 500)
     private String excludeReason;
 
-    /** 곡·채널·길이를 이미 아는 상태로 바로 만든다 — 지금은 테스트에서만 쓴다. */
+    /**
+     * 곡·채널·길이를 이미 아는 상태로 바로 만든다.
+     *
+     * <p><b>실제 서비스에는 이런 경로가 없다.</b> D-059가 영상을 곡보다 먼저 존재하게 했고
+     * D-060이 메타데이터를 나중에 채우게 했으므로, 모든 영상은 {@link #createUncollected}로
+     * 태어나 {@link #markCollected}로 채워진다. 곡 연결과 {@code kind} 선택은 영상 편집
+     * (P1-3-6)이 <b>기존 행을 고치는</b> 일이고, 그 메서드는 아직 없다.
+     *
+     * <p>그래서 지금 이 팩터리는 "곡에 연결된 ORIGINAL 영상"을 만들 수 있는 유일한 수단이고,
+     * {@code SongCatalogServiceTest}가 그 이유로 쓴다. P1-3-6에서 곡 연결·kind 변경 메서드가
+     * 생기면 <b>이 팩터리를 지우고 테스트가 실제 경로를 따라가게 바꾼다.</b>
+     */
     public static Video create(
         Song song,
         Channel channel,
@@ -97,7 +112,10 @@ public class Video extends CreatedAtEntity {
         return video;
     }
 
-    /** URL(videoId)만 받고 만드는 미수집 영상 (P1-3-3, D-059·D-060). song·channel·kind·길이는 아직 없다. */
+    /**
+     * 영상이 실제로 만들어지는 경로다. URL(videoId) 하나만 받고 나머지는 전부 비어 있다
+     * (D-059·D-060). 자동 유입(Phase 3)도 D-059에 따라 곡 없는 영상으로 여기 들어온다.
+     */
     public static Video createUncollected(String youtubeVideoId) {
         Video video = new Video();
         video.youtubeVideoId = youtubeVideoId;
@@ -129,7 +147,7 @@ public class Video extends CreatedAtEntity {
         this.collectionStatus = VideoCollectionStatus.UNCOLLECTED;
     }
 
-    /** 어떤 상태에서든 → EXCLUDED (P1-3-3 결정 1). 이후 배치·수동 수집이 다시 건드리지 않는다. */
+    /** 어떤 상태에서든 → EXCLUDED (D-066). 이후 배치·수동 수집이 다시 건드리지 않는다. */
     public void exclude(String reason) {
         this.collectionStatus = VideoCollectionStatus.EXCLUDED;
         this.excludeReason = reason;
@@ -147,19 +165,4 @@ public class Video extends CreatedAtEntity {
         this.excludeReason = null;
     }
 
-    /** 조회수는 하루 1회 배치로 갱신한다 (D-034). 등록 직후에도 한 번 부른다. */
-    public void updateStats(Long viewCount) {
-        this.viewCount = viewCount;
-        this.statsUpdatedAt = Instant.now();
-    }
-
-    /** 출제 목록에서 뺀다 (D-010). 되돌리려면 {@link #enablePlayable()}. */
-    public void disablePlayable() {
-        this.playable = false;
-    }
-
-    /** 다시 출제 대상으로 켠다. */
-    public void enablePlayable() {
-        this.playable = true;
-    }
 }

@@ -157,19 +157,6 @@ class VideoIngestServiceTest {
     }
 
     @Test
-    @DisplayName("피드백 — playable을 껐다 켤 수 있다")
-    void togglesPlayable() {
-        Video video = videoRepository.save(Video.createUncollected("toggle_id"));
-        assertThat(video.isPlayable()).isTrue();
-
-        videoIngestService.disablePlayable(video.getId());
-        assertThat(videoRepository.findById(video.getId()).orElseThrow().isPlayable()).isFalse();
-
-        videoIngestService.enablePlayable(video.getId());
-        assertThat(videoRepository.findById(video.getId()).orElseThrow().isPlayable()).isTrue();
-    }
-
-    @Test
     @DisplayName("D-069 — 대기 중인 영상이 50개를 넘으면 50개 묶음으로 나눠 부르고 전부 수집한다")
     void collectsInChunksOfFifty() {
         int total = 55;

@@ -70,20 +70,6 @@ public class AdminVideoController {
         return ResponseEntity.ok().build();
     }
 
-    /** 출제 목록에서 뺀다 (D-010). */
-    @PostMapping("/{id}/disable")
-    public ResponseEntity<Void> disable(@PathVariable Long id) {
-        videoIngestService.disablePlayable(id);
-        return ResponseEntity.ok().build();
-    }
-
-    /** 다시 출제 대상으로 켠다. */
-    @PostMapping("/{id}/enable")
-    public ResponseEntity<Void> enable(@PathVariable Long id) {
-        videoIngestService.enablePlayable(id);
-        return ResponseEntity.ok().build();
-    }
-
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         videoIngestService.delete(id);
