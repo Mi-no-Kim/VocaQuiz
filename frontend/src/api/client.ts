@@ -48,9 +48,8 @@ export async function apiFetch<T>(
     throw new ApiError(response.status, response.statusText);
   }
 
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return (await response.json()) as T;
+  // 본문 없이 200/204만 돌려주는 엔드포인트가 있다(P1-3-3의 상태 전이 API들) —
+  // 상태 코드로 가르지 않고 실제 본문이 비어 있는지로 판단한다.
+  const text = await response.text();
+  return text ? (JSON.parse(text) as T) : (undefined as T);
 }
