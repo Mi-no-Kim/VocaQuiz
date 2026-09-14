@@ -226,31 +226,38 @@ UNIQUE (song_id, producer_id, role)
 - **지금은 role 값을 하나만 쓴다.** 관리자 화면은 이름만 받고 role을 자동으로 채운다.
 - 값이 늘어도 DDL이 필요 없다. 역할 값의 목록은 아직 정하지 않았다 — O-32.
 
-### video ← D-006, D-010, D-034, D-055, D-059, D-060
+### video ← D-006, D-010, D-034, D-055, D-059, D-060, D-066, D-067, D-068
 
 ```
-id                bigint  PK
-song_id           bigint  FK → song  NULL      ← 곡 없는 영상이 있다 (D-059)
-channel_id        bigint  FK → channel  NULL
-youtube_video_id  varchar(32)  UNIQUE NOT NULL
-kind              varchar(32)  NOT NULL    ORIGINAL | MV | SELF_COVER | COVER | LIVE | OTHER
-playable          boolean  NOT NULL DEFAULT true   ← D-010: 출제 필터는 이것만 본다
-(수집 상태)       varchar(20)  NOT NULL   미수집 | 수집됨 | 실패 (D-060). 이름은 P1-3-3에서 정한다
-duration_sec      int  NULL           ← videos.list contentDetails.duration (D-034). 수집 전에는 NULL (D-060)
-view_count        bigint  NULL         ← videos.list statistics.viewCount (D-034)
-stats_updated_at  timestamp  NULL      조회수 배치 갱신 시각
-title_snapshot    varchar(300)  NULL   videos.list snippet.title 원문. 검수·추적용
-published_at      timestamp  NULL
-created_at        timestamp
+id                 bigint  PK
+song_id            bigint  FK → song  NULL      ← 곡 없는 영상이 있다 (D-059)
+channel_id         bigint  FK → channel  NULL
+youtube_video_id   varchar(32)  UNIQUE NOT NULL
+kind               varchar(32)  NOT NULL   UNDEFINED | ORIGINAL | MV | SELF_COVER | COVER | LIVE | OTHER
+playable           boolean  NOT NULL DEFAULT true   ← D-010: 출제 필터는 이것만 본다
+collection_status  varchar(20)  NOT NULL   UNCOLLECTED | COLLECTED | FAILED | EXCLUDED (D-060, D-066)
+exclude_reason     varchar(500)  NULL      EXCLUDED로 보낼 때 받은 사유 (D-066). 제외를 취소하면 비운다
+duration_sec       int  NULL           ← videos.list contentDetails.duration (D-034). 수집 전에는 NULL (D-060)
+view_count         bigint  NULL         ← videos.list statistics.viewCount (D-034)
+stats_updated_at   timestamp  NULL      마지막 수집 시각
+title_snapshot     varchar(300)  NULL   videos.list snippet.title 원문. 검수·추적용
+published_at       timestamp  NULL
+created_at         timestamp
 INDEX (song_id)
 ```
 
-- 컬럼은 그대로다. 다만 `kind`가 하는 일이 하나 늘었다.
-  출제 대상을 `kind = ORIGINAL`로 제한해 리믹스 정답의 어색함을 피한다 (D-055).
-- `song_vocal` 재계산도 이 컬럼을 본다 (D-050).
-- `view_count`는 하루 1회 배치로 갱신한다 (`videos.list`, id 50개당 1 unit).
+- `kind`가 하는 일은 둘이다. 출제 대상을 `kind = ORIGINAL`로 제한해 리믹스 정답의 어색함을 피하고 (D-055),
+  `song_vocal` 재계산도 이 컬럼을 본다 (D-050).
+- **`UNDEFINED`는 "아직 안 골랐다"는 값이다** (D-067). 등록 직후가 이 값이고, 영상 편집(P1-3-6)에서 사람이 고른다.
+  nullable로 두지 않는 이유는 D-067에 있다. 출제 쿼리는 `ORIGINAL`만 보므로 `UNDEFINED`는 저절로 빠진다.
+- **`EXCLUDED`는 사람이 배치 대상에서 뺀 상태다** (D-066). 어떤 상태에서든 갈 수 있고 `exclude_reason`이 함께 찬다.
+  `FAILED`는 "`videos.list` 응답에 그 id가 없었다"만 뜻하고, 호출 실패는 여기 들어오지 않는다 (D-069).
 - 곡 없이도 존재한다 (D-059). 곡 편집이나 영상 편집에서 곡과 연결한다.
-- URL을 넣으면 미수집으로 생기고, 일괄 수집이 `duration_sec` · `published_at` · `title_snapshot` · `view_count` · `channel_id`를 채운다 (D-060). 수집 전 영상에는 구간을 찍지 않는다.
+- URL을 넣으면 미수집으로 생기고, 일괄 수집이 `duration_sec` · `published_at` · `title_snapshot` · `view_count` · `channel_id` · `stats_updated_at`을 채운다 (D-060·D-069). 수집 전 영상에는 구간을 찍지 않는다.
+- **행을 지울 수 있다** (D-068). 곡에 붙어 있어도 지우고, 지우기 전에 `video_credit` · `video_vocal`을 먼저 지운다.
+  지운 영상이 `ORIGINAL`이면서 곡에 붙어 있었다면 그 곡의 `song_vocal`을 다시 계산한다 (D-050).
+- **`view_count`를 주기적으로 갱신하는 배치는 아직 없다.** 지금 이 값과 `stats_updated_at`은 수집할 때 한 번 찬다.
+  하루 1회 갱신(D-034, `videos.list` id 50개당 1 unit)은 필요해질 때 만든다.
 
 ### video_credit ← D-053
 

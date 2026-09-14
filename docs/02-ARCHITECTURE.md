@@ -1,6 +1,6 @@
 # VocaQuiz — 기술 설계 문서
 
-> **개정 2026-09-07.** `docs/00-DECISIONS.md`(D-001~D-049) 기준.
+> **개정 2026-09-14.** `docs/00-DECISIONS.md`(D-001~D-069) 기준.
 > **테이블 정의는 이 문서에 없다 → `docs/04-SCHEMA.md`.** 중복을 만들지 않기 위해서다.
 > 이 문서는 **결정과 그 이유**, 그리고 코드 구조를 적는다.
 
@@ -79,6 +79,10 @@ com.vocaquiz
 **규칙:**
 
 - 다른 도메인 패키지의 `domain`/`repository`를 직접 참조하지 않는다. `service`를 통한다.
+- **`api`의 컨트롤러는 `repository`를 주입받지 않는다. 같은 도메인이어도 예외가 없고, 조회만 하는 경우도 마찬가지다.**
+  조회 하나라도 컨트롤러가 리포지토리를 직접 부르면 그 조회는 트랜잭션 · 영속성 컨텍스트 밖에서 돈다.
+  `open-in-view: false`이므로(`application-dev.yaml`) 지연 로딩이 그 자리에서 터지고, 지금 안 터지는 코드는
+  우연히 fetch join이 걸려 있어서일 뿐이다. 컴파일러도 테스트도 이걸 못 잡는다.
 - `api`의 DTO는 절대 엔티티를 그대로 노출하지 않는다.
 - **`game/quiz/types/` 밖의 어떤 코드도 특정 퀴즈 유형의 이름을 알아서는 안 된다.**
   `"AUDIO_SEGMENT"` 문자열이 `GameService`·`RoundService`·컨트롤러·프론트 게임 화면에
@@ -299,13 +303,18 @@ GET /api/v1/games/{gameId}/result
 곡과 영상은 따로 만들고 편집에서 연결한다 (D-059). 영상 메타데이터는 미수집으로 쌓았다가 한꺼번에 수집한다 (D-060).
 
 ```
-영상
+영상 (P1-3-3까지 구현됨)
 POST   /api/v1/admin/videos                 { "videoId":"..." } → 미수집 영상 생성. 이미 있으면 409
-GET    /api/v1/admin/videos                 목록. 수집 상태 · 곡 없는 영상 필터
-GET    /api/v1/admin/videos/{id}
-PATCH  /api/v1/admin/videos/{id}            곡 연결 · kind · 보컬 · 크레딧
-POST   /api/v1/admin/videos/fetch           미수집 영상 일괄 수집 (수동 실행)
+GET    /api/v1/admin/videos                 목록. 곡 없는 영상만. `?status=`로 수집 상태 필터
+POST   /api/v1/admin/videos/fetch           대기 중인 미수집 영상 일괄 수집 (수동 실행, D-069)
 POST   /api/v1/admin/videos/{id}/requeue    실패 → 미수집
+POST   /api/v1/admin/videos/{id}/exclude    { "reason":"..." } → 배치 대상에서 뺀다 (D-066)
+POST   /api/v1/admin/videos/{id}/restore    제외 취소 (D-066)
+DELETE /api/v1/admin/videos/{id}            영상 삭제. 곡에 붙어 있어도 지운다 (D-068)
+
+영상 (P1-3-6에서 만든다)
+GET    /api/v1/admin/videos/{id}
+PATCH  /api/v1/admin/videos/{id}            곡 연결 · kind · 보컬 · 크레딧 · playable 토글
 
 곡
 POST   /api/v1/admin/songs                  원제 언어 · 이름들 · 곡 언어 · 프로듀서 · 정답 패턴 · status
