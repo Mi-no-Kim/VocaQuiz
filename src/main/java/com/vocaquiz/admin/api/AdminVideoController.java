@@ -3,9 +3,7 @@ package com.vocaquiz.admin.api;
 import com.vocaquiz.admin.api.dto.AddVideoRequest;
 import com.vocaquiz.admin.api.dto.AdminVideoResponse;
 import com.vocaquiz.admin.api.dto.ExcludeVideoRequest;
-import com.vocaquiz.catalog.domain.Video;
 import com.vocaquiz.catalog.domain.VideoCollectionStatus;
-import com.vocaquiz.catalog.repository.VideoRepository;
 import com.vocaquiz.catalog.service.VideoIngestService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,28 +13,31 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/** 영상 추가·수집 (D-059·D-060·D-066·D-069). */
+/**
+ * 영상 추가·수집 (D-059·D-060·D-066·D-069).
+ *
+ * <p>리포지토리를 직접 주입받지 않는다 (D-070). 조회도 {@link VideoIngestService}를 거쳐
+ * {@code VideoSummary}로 받고, 여기서 API 응답으로만 옮긴다.
+ */
 @RestController
 @RequestMapping("/api/v1/admin/videos")
 @RequiredArgsConstructor
 public class AdminVideoController {
 
     private final VideoIngestService videoIngestService;
-    private final VideoRepository videoRepository;
 
     @PostMapping
     public ResponseEntity<AdminVideoResponse> add(@RequestBody @Valid AddVideoRequest request) {
-        Video video = videoIngestService.addVideo(request.videoId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(AdminVideoResponse.from(video));
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(AdminVideoResponse.from(videoIngestService.addVideo(request.videoId())));
     }
 
     /** song이 없는 영상만 준다 — 곡에 붙은 순간부터는 영상 편집(P1-3-6) 화면의 몫이다. */
     @GetMapping
     public List<AdminVideoResponse> list(@RequestParam(required = false) VideoCollectionStatus status) {
-        List<Video> videos = status == null
-            ? videoRepository.findBySongIsNullOrderByIdDesc()
-            : videoRepository.findBySongIsNullAndCollectionStatusOrderByIdDesc(status);
-        return videos.stream().map(AdminVideoResponse::from).toList();
+        return videoIngestService.listUnlinked(status).stream()
+            .map(AdminVideoResponse::from)
+            .toList();
     }
 
     /**
