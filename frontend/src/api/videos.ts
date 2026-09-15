@@ -43,15 +43,6 @@ export function restoreVideo(id: number): Promise<void> {
   return apiFetch<void>(`${BASE}/${id}/restore`, { method: "POST" });
 }
 
-/** 출제 목록에서 뺀다/다시 켠다 — playable 토글. 화면에는 아직 노출하지 않는다(P1-3-6부터). */
-export function enableVideo(id: number): Promise<void> {
-  return apiFetch<void>(`${BASE}/${id}/enable`, { method: "POST" });
-}
-
-export function disableVideo(id: number): Promise<void> {
-  return apiFetch<void>(`${BASE}/${id}/disable`, { method: "POST" });
-}
-
 export function deleteVideo(id: number): Promise<void> {
   return apiFetch<void>(`${BASE}/${id}`, { method: "DELETE" });
 }

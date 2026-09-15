@@ -1,7 +1,6 @@
 package com.vocaquiz.admin.api;
 
 import com.vocaquiz.admin.api.dto.AdminMeResponse;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
@@ -13,7 +12,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/admin")
-@RequiredArgsConstructor
 public class AdminController {
 
     @GetMapping("/me")
