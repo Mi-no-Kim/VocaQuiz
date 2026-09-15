@@ -1,19 +1,19 @@
 import { apiFetch } from "@/api/client";
-import type { VideoCollectionStatus, VideoResponse } from "@/api/types";
+import type { AdminVideoResponse, VideoCollectionStatus } from "@/api/types";
 
 const BASE = "/api/v1/admin/videos";
 
 /** song이 없는 영상만 온다 — 곡에 붙은 순간부터는 영상 편집(P1-3-6) 화면의 몫이다. */
 export function fetchVideos(
   status?: VideoCollectionStatus,
-): Promise<VideoResponse[]> {
+): Promise<AdminVideoResponse[]> {
   const query = status ? `?status=${status}` : "";
-  return apiFetch<VideoResponse[]>(`${BASE}${query}`);
+  return apiFetch<AdminVideoResponse[]>(`${BASE}${query}`);
 }
 
 /** URL(videoId)만으로 미수집 영상을 만든다. 이미 있으면 409(CONFLICT). */
-export function addVideo(youtubeVideoId: string): Promise<VideoResponse> {
-  return apiFetch<VideoResponse>(BASE, {
+export function addVideo(youtubeVideoId: string): Promise<AdminVideoResponse> {
+  return apiFetch<AdminVideoResponse>(BASE, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ videoId: youtubeVideoId }),

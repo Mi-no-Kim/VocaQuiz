@@ -6,6 +6,7 @@ import com.vocaquiz.catalog.domain.VideoKind;
 import com.vocaquiz.catalog.repository.ChannelRepository;
 import com.vocaquiz.catalog.repository.VideoRepository;
 import com.vocaquiz.catalog.service.VideoIngestService;
+import com.vocaquiz.catalog.service.VideoSummary;
 import com.vocaquiz.common.error.ApiException;
 import com.vocaquiz.common.error.ErrorCode;
 import com.vocaquiz.youtube.YoutubeDataClient;
@@ -151,9 +152,9 @@ class VideoIngestServiceTest {
     @Test
     @DisplayName("D-067 — 등록 직후 kind는 null이 아니라 UNDEFINED다")
     void newVideoStartsWithUndefinedKind() {
-        Video video = videoIngestService.addVideo("undefined_kind_id");
+        VideoSummary video = videoIngestService.addVideo("undefined_kind_id");
 
-        assertThat(video.getKind()).isEqualTo(VideoKind.UNDEFINED);
+        assertThat(video.kind()).isEqualTo(VideoKind.UNDEFINED);
     }
 
     @Test

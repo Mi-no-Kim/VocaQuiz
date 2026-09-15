@@ -31,8 +31,8 @@ export type VideoCollectionStatus =
 export type VideoKind =
   "UNDEFINED" | "ORIGINAL" | "MV" | "SELF_COVER" | "COVER" | "LIVE" | "OTHER";
 
-/** `/api/v1/admin/videos` 응답. `VideoResponse.java`(record)와 필드가 같다. */
-export interface VideoResponse {
+/** `/api/v1/admin/videos` 응답. `AdminVideoResponse.java`(record)와 필드가 같다. */
+export interface AdminVideoResponse {
   id: number;
   youtubeVideoId: string;
   collectionStatus: VideoCollectionStatus;

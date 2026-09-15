@@ -36,8 +36,9 @@ com.vocaquiz
 │   │               SongCredit, SongVocal, Video, VideoCredit, VideoVocal, Segment,
 │   │               Channel, ChannelProducer, Producer, Vocal, VocalName, Language
 │   ├── repository/
-│   ├── service/    SongCatalogService, SegmentService,
-│   │               TextNormalizer, AnswerPatternExpander
+│   ├── service/    SongCatalogService, VideoIngestService, SegmentService,
+│   │               TextNormalizer, AnswerPatternExpander,
+│   │               VideoSummary            ← 서비스가 돌려주는 결과 record (D-070)
 │   └── api/        SongController          (자동완성 목록)
 │
 ├── youtube/                    # 외부 연동 (D-034)
@@ -79,11 +80,17 @@ com.vocaquiz
 **규칙:**
 
 - 다른 도메인 패키지의 `domain`/`repository`를 직접 참조하지 않는다. `service`를 통한다.
-- **`api`의 컨트롤러는 `repository`를 주입받지 않는다. 같은 도메인이어도 예외가 없고, 조회만 하는 경우도 마찬가지다.**
+  값 enum(`VideoKind` 등)은 예외다 — 막는 것은 엔티티와 리포지토리다 (D-070).
+- **`api`의 컨트롤러는 `repository`를 주입받지 않는다. 같은 도메인이어도 예외가 없고, 조회만 하는 경우도 마찬가지다** (D-070).
   조회 하나라도 컨트롤러가 리포지토리를 직접 부르면 그 조회는 트랜잭션 · 영속성 컨텍스트 밖에서 돈다.
   `open-in-view: false`이므로(`application-dev.yaml`) 지연 로딩이 그 자리에서 터지고, 지금 안 터지는 코드는
   우연히 fetch join이 걸려 있어서일 뿐이다. 컴파일러도 테스트도 이걸 못 잡는다.
+- **서비스는 엔티티도 API DTO도 반환하지 않는다** (D-070). 그 도메인 소속 결과 record를 트랜잭션 안에서
+  만들어 돌려주고, 컨트롤러가 API DTO로 옮긴다. 결과 record에는 그 도메인이 아는 것만 담는다 —
+  화면 모양에 맞춰 필드를 늘리면 타입만 하나 늘고 결합은 그대로다.
 - `api`의 DTO는 절대 엔티티를 그대로 노출하지 않는다.
+  엔티티 이름을 그대로 쓰는 응답 DTO에는 소비자 접두어를 붙인다 (`AdminVideoResponse`, D-070).
+  동사가 들어간 요청 DTO(`AddVideoRequest`)는 충돌 여지가 없어 붙이지 않는다.
 - **`game/quiz/types/` 밖의 어떤 코드도 특정 퀴즈 유형의 이름을 알아서는 안 된다.**
   `"AUDIO_SEGMENT"` 문자열이 `GameService`·`RoundService`·컨트롤러·프론트 게임 화면에
   등장하면 설계 위반이다.

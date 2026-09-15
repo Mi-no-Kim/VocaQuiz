@@ -52,11 +52,29 @@ public class VideoIngestService {
 
     /** URL(videoId)만으로 미수집 영상을 만든다. 이미 있으면 409. */
     @Transactional
-    public Video addVideo(String youtubeVideoId) {
+    public VideoSummary addVideo(String youtubeVideoId) {
         videoRepository.findByYoutubeVideoId(youtubeVideoId).ifPresent(existing -> {
             throw new ApiException(ErrorCode.CONFLICT, "이미 등록된 영상: " + youtubeVideoId);
         });
-        return videoRepository.save(Video.createUncollected(youtubeVideoId));
+        return VideoSummary.from(videoRepository.save(Video.createUncollected(youtubeVideoId)));
+    }
+
+    /**
+     * 관리자 목록 화면 — song이 없는 영상만 (D-059). 곡에 붙은 순간부터는 영상 편집(P1-3-6)
+     * 화면의 관할이다. {@code status}가 null이면 수집 상태로 거르지 않는다.
+     *
+     * <p>조회와 {@link VideoSummary} 변환을 둘 다 이 트랜잭션 안에서 끝낸다 (D-070).
+     * channel을 같이 가져오는 조회를 쓰는 건 지연 로딩 때문이 아니라 N+1 때문이다 —
+     * 이 안에서는 지연 로딩이 터지지 않지만, fetch join이 없으면 영상 수만큼 채널 조회가
+     * 따로 나간다.
+     */
+    @Transactional(readOnly = true)
+    public List<VideoSummary> listUnlinked(VideoCollectionStatus status) {
+        List<Video> videos = status == null
+            ? videoRepository.findBySongIsNullOrderByIdDesc()
+            : videoRepository.findBySongIsNullAndCollectionStatusOrderByIdDesc(status);
+
+        return videos.stream().map(VideoSummary::from).toList();
     }
 
     /** [지금 수집] 버튼. 이미 도는 중이면 409(COLLECTION_IN_PROGRESS). */
