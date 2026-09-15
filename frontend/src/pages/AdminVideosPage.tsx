@@ -84,7 +84,7 @@ export function AdminVideosPage() {
       setMessage(null);
       refresh();
     } catch (error) {
-      if (error instanceof ApiError && error.status === 409) {
+      if (error instanceof ApiError && error.errorCode === "CONFLICT") {
         setMessage("이미 등록된 영상입니다.");
         return;
       }
@@ -99,7 +99,10 @@ export function AdminVideosPage() {
       await collectPendingVideos();
       refresh();
     } catch (error) {
-      if (error instanceof ApiError && error.status === 409) {
+      if (
+        error instanceof ApiError &&
+        error.errorCode === "COLLECTION_IN_PROGRESS"
+      ) {
         setMessage("이미 수집이 진행 중입니다.");
         return;
       }
