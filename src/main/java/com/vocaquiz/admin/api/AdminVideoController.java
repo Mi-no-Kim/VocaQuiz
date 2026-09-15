@@ -1,8 +1,8 @@
 package com.vocaquiz.admin.api;
 
 import com.vocaquiz.admin.api.dto.AddVideoRequest;
+import com.vocaquiz.admin.api.dto.AdminVideoResponse;
 import com.vocaquiz.admin.api.dto.ExcludeVideoRequest;
-import com.vocaquiz.admin.api.dto.VideoResponse;
 import com.vocaquiz.catalog.domain.Video;
 import com.vocaquiz.catalog.domain.VideoCollectionStatus;
 import com.vocaquiz.catalog.repository.VideoRepository;
@@ -25,18 +25,18 @@ public class AdminVideoController {
     private final VideoRepository videoRepository;
 
     @PostMapping
-    public ResponseEntity<VideoResponse> add(@RequestBody @Valid AddVideoRequest request) {
+    public ResponseEntity<AdminVideoResponse> add(@RequestBody @Valid AddVideoRequest request) {
         Video video = videoIngestService.addVideo(request.videoId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(VideoResponse.from(video));
+        return ResponseEntity.status(HttpStatus.CREATED).body(AdminVideoResponse.from(video));
     }
 
     /** song이 없는 영상만 준다 — 곡에 붙은 순간부터는 영상 편집(P1-3-6) 화면의 몫이다. */
     @GetMapping
-    public List<VideoResponse> list(@RequestParam(required = false) VideoCollectionStatus status) {
+    public List<AdminVideoResponse> list(@RequestParam(required = false) VideoCollectionStatus status) {
         List<Video> videos = status == null
             ? videoRepository.findBySongIsNullOrderByIdDesc()
             : videoRepository.findBySongIsNullAndCollectionStatusOrderByIdDesc(status);
-        return videos.stream().map(VideoResponse::from).toList();
+        return videos.stream().map(AdminVideoResponse::from).toList();
     }
 
     /**

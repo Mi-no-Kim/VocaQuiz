@@ -6,7 +6,7 @@ import com.vocaquiz.catalog.domain.VideoKind;
 
 import java.time.Instant;
 
-public record VideoResponse(
+public record AdminVideoResponse(
     Long id,
     String youtubeVideoId,
     VideoCollectionStatus collectionStatus,
@@ -20,8 +20,8 @@ public record VideoResponse(
     String channelName,
     String excludeReason
 ) {
-    public static VideoResponse from(Video video) {
-        return new VideoResponse(
+    public static AdminVideoResponse from(Video video) {
+        return new AdminVideoResponse(
             video.getId(),
             video.getYoutubeVideoId(),
             video.getCollectionStatus(),

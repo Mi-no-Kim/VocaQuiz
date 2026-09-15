@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ApiError } from "@/api/client";
-import type { VideoCollectionStatus, VideoResponse } from "@/api/types";
+import type { AdminVideoResponse, VideoCollectionStatus } from "@/api/types";
 import {
   addVideo,
   collectPendingVideos,
@@ -48,12 +48,12 @@ export function AdminVideosPage() {
   const [statusFilter, setStatusFilter] = useState<
     VideoCollectionStatus | "ALL"
   >("ALL");
-  const [videos, setVideos] = useState<VideoResponse[]>([]);
+  const [videos, setVideos] = useState<AdminVideoResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [urlInput, setUrlInput] = useState("");
   const [collecting, setCollecting] = useState(false);
-  const [excludeTarget, setExcludeTarget] = useState<VideoResponse | null>(
+  const [excludeTarget, setExcludeTarget] = useState<AdminVideoResponse | null>(
     null,
   );
 
@@ -216,7 +216,7 @@ function VideoRow({
   onAction,
   onRequestExclude,
 }: {
-  video: VideoResponse;
+  video: AdminVideoResponse;
   onAction: (action: () => Promise<void>) => void;
   onRequestExclude: () => void;
 }) {
@@ -296,7 +296,7 @@ function ExcludeDialog({
   onCancel,
   onConfirm,
 }: {
-  video: VideoResponse;
+  video: AdminVideoResponse;
   onCancel: () => void;
   onConfirm: (reason: string) => void;
 }) {
