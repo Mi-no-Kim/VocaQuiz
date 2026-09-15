@@ -2,6 +2,21 @@
  * 서버 응답 타입은 이 파일 한 곳에 모은다 (CLAUDE.md §2.4).
  */
 
+/** `ErrorCode.java`와 값이 같다. HTTP 상태만으로는 못 가르는 경우를 이걸로 가른다. */
+export type ErrorCode =
+  | "NOT_FOUND"
+  | "INVALID_REQUEST"
+  | "FORBIDDEN"
+  | "EXTERNAL_API_ERROR"
+  | "CONFLICT"
+  | "COLLECTION_IN_PROGRESS";
+
+/** 서버가 실패할 때 주는 본문. `ErrorResponse.java`(record)와 필드가 같다. */
+export interface ErrorResponse {
+  message: string;
+  errorCode: ErrorCode;
+}
+
 /** GET /api/v1/admin/me 응답. `AdminMeResponse.java`(record)와 필드가 같다. */
 export interface AdminMeResponse {
   email: string;
