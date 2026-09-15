@@ -59,6 +59,18 @@ public class SongCatalogService {
         rebuildAnswers(songId, keys);
     }
 
+    /**
+     * 곡의 정답 패턴을 지운다. song_answer_pattern 행과 song_answer 전부를 없앤다 — PUT에서
+     * answerPattern을 비워 보내면 "패턴 없음" 상태로 되돌리는 경로다 (B2).
+     *
+     * <p>패턴이 원래 없었으면 조용히 아무 일도 안 한다.
+     */
+    @Transactional
+    public void clearAnswerPattern(Long songId) {
+        songAnswerPatternRepository.findBySongId(songId).ifPresent(songAnswerPatternRepository::delete);
+        songAnswerRepository.deleteBySongId(songId);
+    }
+
     /** 영상의 보컬을 통째로 바꾼다. 그 영상이 ORIGINAL이면 곡의 song_vocal을 다시 계산한다. */
     @Transactional
     public void replaceVideoVocals(Long videoId, List<Long> vocalIds) {

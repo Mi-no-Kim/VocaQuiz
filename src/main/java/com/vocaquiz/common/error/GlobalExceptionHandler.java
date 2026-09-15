@@ -27,7 +27,7 @@ public class GlobalExceptionHandler {
     ResponseEntity<ErrorResponse> handle(ApiException e) {
         return ResponseEntity
             .status(e.getErrorCode().status())
-            .body(new ErrorResponse(e.getMessage(), e.getErrorCode()));
+            .body(new ErrorResponse(e.getMessage(), e.getErrorCode(), e.getMissingConditions()));
     }
 
     /** {@code @RequestBody @Valid} 검증 실패. 어느 필드가 왜 틀렸는지를 메시지에 담는다. */

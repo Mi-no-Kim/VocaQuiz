@@ -34,4 +34,14 @@ public class Song extends TimestampedEntity {
 
         return song;
     }
+
+    /** 곡 수정(PUT)에서 원제 언어를 바꾼다 (B2). */
+    public void changeOriginalLanguage(Language originalLanguage) {
+        this.originalLanguage = originalLanguage;
+    }
+
+    /** 곡 수정(PUT)에서 상태를 바꾼다. PUBLISHED 조건 검사는 서비스 쪽 책임이다 (D-062). */
+    public void changeStatus(SongStatus status) {
+        this.status = status;
+    }
 }
