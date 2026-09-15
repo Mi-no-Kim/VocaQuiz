@@ -22,9 +22,15 @@ public class ProducerService {
 
     private final ProducerRepository producerRepository;
 
-    /** {@code q}가 없으면 전체를 이름순으로 준다. */
+    /**
+     * {@code q}가 없으면 전체를 이름순으로 준다.
+     *
+     * <p>{@code q}에 든 {@code %}·{@code _}는 LIKE 와일드카드가 아니라 리터럴로 다룬다 —
+     * 이스케이프하지 않으면 "de_o" 같은 검색어가 밑줄 자리에 아무 글자나 매치해 버린다.
+     */
     public List<ProducerSummary> search(String q) {
-        return producerRepository.searchByName(q == null ? "" : q).stream()
+        String pattern = "%" + escapeLike(q == null ? "" : q) + "%";
+        return producerRepository.searchByName(pattern).stream()
             .map(ProducerSummary::from)
             .toList();
     }
@@ -36,5 +42,13 @@ public class ProducerService {
             throw new ApiException(ErrorCode.CONFLICT, "이미 있는 프로듀서: " + name);
         });
         return ProducerSummary.from(producerRepository.save(Producer.create(name)));
+    }
+
+    /** LIKE의 이스케이프 문자 자신부터 이스케이프해야 뒤에 붙이는 {@code %}·{@code _}가 겹치지 않는다. */
+    private static String escapeLike(String raw) {
+        return raw
+            .replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_");
     }
 }

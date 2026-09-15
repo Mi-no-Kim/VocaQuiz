@@ -61,4 +61,15 @@ class ProducerServiceTest {
             .extracting(ProducerSummary::name)
             .containsExactly("DECO*27", "wowaka");
     }
+
+    @Test
+    @DisplayName("검색어의 %·_는 와일드카드가 아니라 리터럴로 다룬다")
+    void searchTreatsWildcardCharactersAsLiteral() {
+        producerService.create("de_o");
+        producerService.create("deXo");
+
+        assertThat(producerService.search("de_o"))
+            .extracting(ProducerSummary::name)
+            .containsExactly("de_o");
+    }
 }
