@@ -7,7 +7,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "producer")
+@Table(
+    name = "producer",
+    uniqueConstraints = @UniqueConstraint(name = "uk_producer_name", columnNames = "name"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Producer extends CreatedAtEntity {
