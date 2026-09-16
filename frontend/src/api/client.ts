@@ -21,26 +21,31 @@ function readCookie(name: string): string | null {
  * <p>`errorCode`는 서버 `ErrorResponse`의 것이고, 상태 코드만으로는 못 가르는 경우를
  * 위해 있다 — 예를 들어 CONFLICT와 COLLECTION_IN_PROGRESS는 둘 다 409다.
  * 서버가 `ErrorResponse`가 아닌 본문을 주면(프록시 오류 등) null이다.
+ *
+ * <p>`missingConditions`는 PUBLISHED 전환 조건 미충족(D-062, B1)일 때만 채워진다.
  */
 export class ApiError extends Error {
   readonly status: number;
   readonly errorCode: ErrorCode | null;
+  readonly missingConditions: string[];
 
   constructor(
     status: number,
     message: string,
     errorCode: ErrorCode | null = null,
+    missingConditions: string[] = [],
   ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.errorCode = errorCode;
+    this.missingConditions = missingConditions;
   }
 }
 
 /**
- * 실패 응답을 ApiError로 바꾼다. 본문이 ErrorResponse면 message·errorCode를 살리고,
- * 아니면 상태 코드만 들고 간다 — 서버·프록시·브라우저 어느 단계에서든 우리 모양이
+ * 실패 응답을 ApiError로 바꾼다. 본문이 ErrorResponse면 message·errorCode·missingConditions를
+ * 살리고, 아니면 상태 코드만 들고 간다 — 서버·프록시·브라우저 어느 단계에서든 우리 모양이
  * 아닌 본문이 올 수 있으므로 파싱 실패를 정상 경로로 다룬다.
  */
 async function toApiError(response: Response): Promise<ApiError> {
@@ -54,6 +59,7 @@ async function toApiError(response: Response): Promise<ApiError> {
           response.status,
           body.message ?? response.statusText,
           body.errorCode,
+          body.missingConditions ?? [],
         );
       }
     } catch {
