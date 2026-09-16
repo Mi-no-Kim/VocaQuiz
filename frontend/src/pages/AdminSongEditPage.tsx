@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router";
 import { ApiError } from "@/api/client";
 import { fetchLanguages } from "@/api/languages";
@@ -98,6 +98,18 @@ export function AdminSongEditPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [missingConditions, setMissingConditions] = useState<string[]>([]);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
+  const answerPatternRef = useRef<HTMLTextAreaElement>(null);
+
+  // 드래그로 늘리는 칸이 아니라, 입력한 줄 수에 맞춰 스스로 커지는 칸이다.
+  // ref로 DOM을 직접 건드릴 뿐 setState를 부르지 않으니 set-state-in-effect
+  // 규칙에 걸리지 않는다 — React 문서가 이 훅의 전형적인 용례로 드는 것과 같다.
+  useEffect(() => {
+    const el = answerPatternRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [answerPattern]);
 
   const applyDetail = useCallback(
     (
@@ -528,11 +540,12 @@ export function AdminSongEditPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           <textarea
+            ref={answerPatternRef}
             value={answerPattern}
             onChange={(event) => setAnswerPattern(event.target.value)}
-            rows={2}
+            rows={3}
             placeholder="예: (히토|인간|사람)(마니아|매니아)"
-            className="w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="w-full resize-none overflow-hidden rounded-lg border border-border bg-background px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           />
           <Button
             type="button"
