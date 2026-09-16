@@ -11,10 +11,14 @@ export type ErrorCode =
   | "CONFLICT"
   | "COLLECTION_IN_PROGRESS";
 
-/** 서버가 실패할 때 주는 본문. `ErrorResponse.java`(record)와 필드가 같다. */
+/**
+ * 서버가 실패할 때 주는 본문. `ErrorResponse.java`(record)와 필드가 같다.
+ * `missingConditions`는 PUBLISHED 전환 조건 미충족(D-062, B1)일 때만 채워진다.
+ */
 export interface ErrorResponse {
   message: string;
   errorCode: ErrorCode;
+  missingConditions?: string[];
 }
 
 /** GET /api/v1/admin/me 응답. `AdminMeResponse.java`(record)와 필드가 같다. */
@@ -45,4 +49,56 @@ export interface AdminVideoResponse {
   publishedAt: string | null;
   channelName: string | null;
   excludeReason: string | null;
+}
+
+/** `SongStatus.java`와 값이 같다. */
+export type SongStatus = "DRAFT" | "PUBLISHED";
+
+/** `GET /api/v1/admin/languages` 응답 원소. `AdminLanguageResponse.java`(record)와 필드가 같다. */
+export interface AdminLanguageResponse {
+  id: number;
+  code: string;
+  name: string;
+}
+
+/** `/api/v1/admin/producers` 응답. `AdminProducerResponse.java`(record)와 필드가 같다. */
+export interface AdminProducerResponse {
+  id: number;
+  name: string;
+}
+
+/** `POST /api/v1/admin/answer-patterns/check` 응답. `CheckAnswerPatternResponse.java`(record)와 필드가 같다 (D-052). */
+export interface CheckAnswerPatternResponse {
+  results: string[];
+  count: number;
+  warning: boolean;
+}
+
+/** `POST /api/v1/admin/songs` 응답. `AdminSongResponse.java`(record)와 필드가 같다. */
+export interface AdminSongResponse {
+  id: number;
+  originalLanguageId: number;
+  status: SongStatus;
+}
+
+/** `AdminSongDetailResponse.AdminSongNameResponse`(record)와 필드가 같다. */
+export interface AdminSongNameResponse {
+  id: number;
+  languageId: number;
+  name: string;
+  primary: boolean;
+}
+
+/**
+ * `GET`·`PUT /api/v1/admin/songs/{id}` 응답. `AdminSongDetailResponse.java`(record)와
+ * 필드가 같다 — 이름·언어·프로듀서·정답 패턴까지 전부 담는다(B2).
+ */
+export interface AdminSongDetailResponse {
+  id: number;
+  originalLanguageId: number;
+  status: SongStatus;
+  names: AdminSongNameResponse[];
+  languageIds: number[];
+  producerIds: number[];
+  answerPattern: string | null;
 }

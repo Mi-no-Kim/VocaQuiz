@@ -43,4 +43,11 @@ public class SongName extends CreatedAtEntity {
 
         return songName;
     }
+
+    /** 곡 수정(PUT)에서 이 행을 고친다 — id가 있는 이름은 새로 만들지 않고 이 메서드로 바뀐다 (B2). */
+    public void update(Language language, String name, boolean isPrimary) {
+        this.language = language;
+        this.name = name;
+        this.isPrimary = isPrimary;
+    }
 }

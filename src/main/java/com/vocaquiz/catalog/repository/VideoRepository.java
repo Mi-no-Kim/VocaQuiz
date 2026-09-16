@@ -13,6 +13,9 @@ public interface VideoRepository extends JpaRepository<Video, Long> {
 
     List<Video> findBySongIdAndKind(Long songId, VideoKind kind);
 
+    /** PUBLISHED 전환 조건 3 — 수집된 ORIGINAL 영상이 하나라도 있는지 (D-062). */
+    boolean existsBySongIdAndKindAndCollectionStatus(Long songId, VideoKind kind, VideoCollectionStatus collectionStatus);
+
     Optional<Video> findByYoutubeVideoId(String youtubeVideoId);
 
     /** channel을 같이 가져온다 — 트랜잭션 밖에서 channel을 읽어야 할 때(테스트 등) 지연 로딩 예외를 막는다. */

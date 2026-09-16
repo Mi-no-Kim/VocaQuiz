@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { Link } from "react-router";
 import { fetchAdminMe } from "@/api/admin";
 import { ApiError } from "@/api/client";
 import type { AdminMeResponse } from "@/api/types";
@@ -22,7 +23,6 @@ type GateState =
 /**
  * 관리자 화면 공통 틀 (P1-3-2).
  * 들어올 때 GET /api/v1/admin/me를 불러 401/403/200 세 갈래로 나눈다 (D-065).
- * 화면(기능)은 아직 없다 — 이 단계의 제약이다.
  */
 export function AdminGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<GateState>({ status: "loading" });
@@ -84,8 +84,19 @@ export function AdminGate({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-svh">
-      <header className="flex items-center justify-end border-b border-border px-6 py-3 text-sm text-muted-foreground">
-        {state.me.email}
+      <header className="flex items-center justify-between border-b border-border px-6 py-3 text-sm">
+        <nav className="flex gap-4">
+          <Link to="/" className="text-muted-foreground hover:text-foreground">
+            영상
+          </Link>
+          <Link
+            to="/admin/songs/new"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            곡 만들기
+          </Link>
+        </nav>
+        <span className="text-muted-foreground">{state.me.email}</span>
       </header>
       {children}
     </div>
