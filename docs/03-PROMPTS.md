@@ -229,7 +229,7 @@ docs/00-DECISIONS.md D-050 ~ D-056, D-058 ~ D-065를 읽어라.
 - GET /api/v1/admin/songs — 검색어 · status · 정렬(최신순 / 오래된순)
   검색어는 TextNormalizer로 정규화해 song_answer.normalized 부분 일치
   곡마다 PUBLISHED의 빠진 조건을 함께 준다 → "미작업" 표시 (D-062)
-- 표시 이름은 KO 대표, 없으면 원제 (D-061)
+- 표시 이름은 site_language 대표, 없으면 language.display_order 순으로 폴백 (D-071)
 - 화면 /admin/songs — 검색, status 필터, 정렬, 미작업 표시, 곡 편집으로 이동
 - 이 단계에서 정할 것: 페이지네이션
 

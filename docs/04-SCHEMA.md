@@ -20,12 +20,13 @@ NOT NULL·FK 같은 다른 무결성 위반(버그)을 구분한다. `uk_`가 �
 > **조인 테이블도 대리 키 `id`를 갖는다.** 복합 PK 대신 UNIQUE 제약으로 같은 조합을 막는다.
 > 제약은 같고 강제 수단만 옮긴 것이다. JPA 매핑을 단순하게 두기 위한 선택이다.
 
-### language ← D-036
+### language ← D-036, D-071
 
 ```
-id      bigint  PK
-code    varchar(10)  UNIQUE NOT NULL    KO | EN | JA | …
-name    varchar(50)  NOT NULL
+id             bigint  PK
+code           varchar(10)  UNIQUE NOT NULL    KO | EN | JA | …
+name           varchar(50)  NOT NULL
+display_order  int  NOT NULL    표시 폴백 순서 — EN이 0. 오름차순으로 훑어 이름 있는 첫 언어를 보여준다 (D-071)
 ```
 
 - 언어 추가가 **스키마 변경이 아니라 행 추가**가 된다 (D-036).
@@ -360,20 +361,22 @@ INDEX (status, created_at)
 
 ## 4. 사용자 / 인증
 
-### app_user ← D-032
+### app_user ← D-032, D-071
 
 ```
-id                bigint  PK
-provider          varchar(20)  NOT NULL    GOOGLE
-provider_user_id  varchar(100) NOT NULL
-email             varchar(200)
-role              varchar(20)  NOT NULL DEFAULT 'USER'    USER | ADMIN
-created_at        timestamp
+id                 bigint  PK
+provider           varchar(20)  NOT NULL    GOOGLE
+provider_user_id   varchar(100) NOT NULL
+email              varchar(200)
+role               varchar(20)  NOT NULL DEFAULT 'USER'    USER | ADMIN
+site_language_id   bigint  FK → language  NOT NULL   ← 표시 언어. 첫 로그인에 English로 채워진다 (D-071)
+created_at         timestamp
 UNIQUE (provider, provider_user_id)
 ```
 
 - `/admin/**`은 `role = ADMIN`만 (D-032).
 - 게임 플레이는 로그인 없이 가능. Phase 2 데일리에서만 필수가 된다.
+- 익명 유저의 언어 선택은 서버에 저장하지 않는다. 브라우저(쿠키/localStorage)에만 남는다 (D-071).
 
 ---
 
@@ -466,21 +469,26 @@ WHERE s.status = 'PUBLISHED'
 
 곡 없는 영상(D-059)은 `v.song_id = s.id` JOIN에서 빠지고, 미수집 영상(D-060)은 구간이 없어서 빠진다. 쿼리를 고칠 필요가 없다.
 
-**자동완성 목록** (D-007, D-040, D-052):
+**자동완성 목록** (D-040, D-052, D-071):
 
 ```sql
 SELECT s.id,
        (SELECT GROUP_CONCAT(a.normalized SEPARATOR ' ')
         FROM song_answer a WHERE a.song_id = s.id) AS keywords,
-       (SELECT name FROM song_name
-        WHERE song_id = s.id AND language_id = :uiLang AND is_primary) AS display,
-       (SELECT name FROM song_name
-        WHERE song_id = s.id AND language_id = s.original_language_id AND is_primary) AS original
+       (SELECT sn.name
+        FROM song_name sn
+        JOIN language l ON l.id = sn.language_id
+        WHERE sn.song_id = s.id AND sn.is_primary = true
+        ORDER BY CASE WHEN sn.language_id = :siteLanguageId THEN -1 ELSE l.display_order END
+        LIMIT 1) AS display
 FROM song s WHERE s.status = 'PUBLISHED'
 ```
 
-→ 앱 시작 시 한 번 받아 캐시. 표시는 `display (original)`, 검색은 `keywords`.
+→ 앱 시작 시 한 번 받아 캐시. `:siteLanguageId`는 로그인 유저의 `site_language_id`, 익명은 `EN`의 id다
+(D-071). 검색은 `keywords`.
 
+- 원제 병기(구 D-007)는 없어졌다. `display` 하나만 보여준다 — site_language에 이름이 있으면 그 이름,
+  없으면 `language.display_order` 오름차순으로 다음 언어를 본다 (D-071).
 - `song.search_keywords` 컬럼을 없앴으므로 이 목록은 전개 결과에서 만든다 (D-052).
 - `song_answer`가 곡 단위로 중복을 막으므로 `DISTINCT`가 필요 없다 (D-056).
 - `GROUP_CONCAT`의 기본 길이 제한(`group_concat_max_len`)에 걸릴 수 있다.

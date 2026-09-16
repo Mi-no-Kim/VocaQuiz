@@ -1,5 +1,6 @@
 package com.vocaquiz.user.domain;
 
+import com.vocaquiz.catalog.domain.Language;
 import com.vocaquiz.common.domain.CreatedAtEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -33,13 +34,25 @@ public class AppUser extends CreatedAtEntity {
     @Enumerated(value = EnumType.STRING)
     private Role role;
 
-    public static AppUser create(AuthProvider provider, String providerUserId, String email, Role role) {
+    /** 표시 언어 — 곡명·프로듀서명 등 이름 표시에 쓴다. 첫 로그인에 English로 채워진다 (D-071). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "site_language_id", nullable = false)
+    private Language siteLanguage;
+
+    public static AppUser create(
+            AuthProvider provider, String providerUserId, String email, Role role, Language siteLanguage) {
         AppUser appUser = new AppUser();
         appUser.provider = provider;
         appUser.providerUserId = providerUserId;
         appUser.email = email;
         appUser.role = role;
+        appUser.siteLanguage = siteLanguage;
 
         return appUser;
+    }
+
+    /** 사이트 언어 설정을 바꾼다 (D-071). */
+    public void changeSiteLanguage(Language siteLanguage) {
+        this.siteLanguage = siteLanguage;
     }
 }
