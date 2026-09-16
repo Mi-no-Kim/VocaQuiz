@@ -99,4 +99,25 @@ public class AnswerPatternExpanderTest {
         assertThat(AnswerPatternExpander.expand("   \n  ")).isEmpty();
         assertThat(AnswerPatternExpander.countOf("")).isZero();
     }
+
+    @Test
+    @DisplayName("완료 기준 — 정확히 400개는 상한을 넘지 않는다")
+    void allowsExactlyMaxResults() {
+        // 2^4 * 5^2 = 400.
+        String pattern = "(a|b)(a|b)(a|b)(a|b)(a|b|c|d|e)(a|b|c|d|e)";
+
+        assertThat(AnswerPatternExpander.expand(pattern)).hasSize(400);
+    }
+
+    @Test
+    @DisplayName("완료 기준 — 400개를 넘으면 실패하고 몇 개인지 알려 준다")
+    void rejectsOverMaxResults() {
+        // 2^4 * 5 * 6 = 480, 상한 400개를 넘는다.
+        String pattern = "(a|b)(a|b)(a|b)(a|b)(a|b|c|d|e)(a|b|c|d|e|f)";
+
+        assertThatThrownBy(() -> AnswerPatternExpander.expand(pattern))
+            .isInstanceOf(ApiException.class)
+            .hasMessageContaining("400")
+            .hasMessageContaining("480");
+    }
 }

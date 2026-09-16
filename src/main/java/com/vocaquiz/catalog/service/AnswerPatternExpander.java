@@ -16,9 +16,21 @@ import java.util.List;
  */
 public class AnswerPatternExpander {
 
+    /**
+     * 정답 패턴 하나가 만들 수 있는 결과의 최대 개수. {@link #expand}가 이 개수를 넘기면
+     * 던진다 — 20개(관리자 화면의 {@code WARNING_THRESHOLD})는 경고일 뿐이지만 이건 상한이다.
+     */
+    private static final int MAX_RESULTS = 400;
+
     private AnswerPatternExpander() {}
 
-    /** 여러 줄 원문을 전개한다. 한 줄이라도 문법이 틀리면 전체가 실패한다. */
+    /**
+     * 여러 줄 원문을 전개한다. 한 줄이라도 문법이 틀리면 전체가 실패한다.
+     *
+     * <p>결과가 {@value #MAX_RESULTS}개를 넘으면 던진다. 정답 패턴 검사(check)도 실제
+     * 저장({@link SongCatalogService#replaceAnswerPattern})도 이 메서드를 거치므로
+     * 상한을 여기 한 곳에만 둔다.
+     */
     public static List<String> expand(String pattern) {
         List<String> out = new ArrayList<>();
         String[] lines = split(pattern);
@@ -26,7 +38,13 @@ public class AnswerPatternExpander {
         for (int i = 0; i < lines.length; i++) {
             String line = lines[i].strip();
             if (line.isEmpty()) continue;
-            out.addAll(combine(parse(line, i + 1)));
+            List<List<String>> slots = parse(line, i + 1);
+            if (out.size() + count(slots) > MAX_RESULTS) {
+                throw new ApiException(ErrorCode.INVALID_REQUEST,
+                    "정답 패턴 결과가 %d개를 넘을 수 없다 (지금까지 %d개)"
+                        .formatted(MAX_RESULTS, out.size() + count(slots)));
+            }
+            out.addAll(combine(slots));
         }
         return out;
     }

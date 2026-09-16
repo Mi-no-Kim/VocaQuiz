@@ -101,6 +101,19 @@ class SongCatalogServiceTest {
     }
 
     @Test
+    @DisplayName("결과가 400개를 넘으면 원문도 저장되지 않는다")
+    void rejectsPatternOverAnswerLimit() {
+        // 2^4 * 5 * 6 = 480, 상한 400개를 넘는다 (AnswerPatternExpander.MAX_RESULTS).
+        String pattern = "(a|b)(a|b)(a|b)(a|b)(a|b|c|d|e)(a|b|c|d|e|f)";
+
+        assertThatThrownBy(() -> songCatalogService.replaceAnswerPattern(songId, pattern))
+            .isInstanceOf(ApiException.class);
+
+        assertThat(songAnswerPatternRepository.findBySongId(songId)).isEmpty();
+        assertThat(normalizedOf(songId)).isEmpty();
+    }
+
+    @Test
     @DisplayName("완료 기준 5 — ORIGINAL 영상의 보컬이 곡의 보컬이 된다")
     void rebuildsSongVocalsFromOriginal() {
         Long miku = vocalRepository.save(Vocal.create("HATSUNE_MIKU")).getId();
