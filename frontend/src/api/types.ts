@@ -77,7 +77,6 @@ export interface CheckAnswerPatternResponse {
 /** `POST /api/v1/admin/songs` 응답. `AdminSongResponse.java`(record)와 필드가 같다. */
 export interface AdminSongResponse {
   id: number;
-  originalLanguageId: number;
   status: SongStatus;
 }
 
@@ -95,7 +94,6 @@ export interface AdminSongNameResponse {
  */
 export interface AdminSongDetailResponse {
   id: number;
-  originalLanguageId: number;
   status: SongStatus;
   names: AdminSongNameResponse[];
   languageIds: number[];

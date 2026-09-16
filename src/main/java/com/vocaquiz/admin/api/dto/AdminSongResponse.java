@@ -5,11 +5,10 @@ import com.vocaquiz.catalog.service.SongSummary;
 
 public record AdminSongResponse(
     Long id,
-    Long originalLanguageId,
     SongStatus status
 ) {
 
     public static AdminSongResponse from(SongSummary summary) {
-        return new AdminSongResponse(summary.id(), summary.originalLanguageId(), summary.status());
+        return new AdminSongResponse(summary.id(), summary.status());
     }
 }

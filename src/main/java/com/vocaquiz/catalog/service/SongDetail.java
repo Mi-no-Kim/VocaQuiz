@@ -11,7 +11,6 @@ import java.util.List;
  */
 public record SongDetail(
     Long id,
-    Long originalLanguageId,
     SongStatus status,
     List<SongNameDetail> names,
     List<Long> languageIds,

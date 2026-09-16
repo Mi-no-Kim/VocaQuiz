@@ -31,11 +31,11 @@ function initialNameRows(languages: AdminLanguageResponse[]): NameRow[] {
 }
 
 /**
- * 곡 만들기 화면 (P1-3-4). 원제 언어와 그 언어의 대표 이름이 최소 입력이다 (D-061).
- * 곡 언어(song_language)는 원제 언어와 완전히 별개로 고른다 — 자동으로 안 채워진다 (B3).
+ * 곡 만들기 화면 (P1-3-4). 이름이 1개 이상 있는 것이 최소 입력이다 (D-072).
+ * 곡 언어(song_language)는 이름과 완전히 별개로 고른다 — 자동으로 안 채워진다 (B3).
  *
  * <p>이름 입력은 언어마다 정확히 1행이다 — 여러 이름을 붙이는 UI는 아직 없어, 포함된
- * 행은 그대로 대표 이름이 된다. 원제 언어의 행은 뺄 수 없다 (D-061).
+ * 행은 그대로 대표 이름이 된다.
  *
  * <p>여기서 만드는 곡은 항상 초안(DRAFT)이다 — 공개는 수집된 원곡(ORIGINAL) 영상이
  * 있어야 해(D-062), 새로 만드는 시점엔 항상 조건 미충족이라 이 화면에서는 아예
@@ -43,9 +43,6 @@ function initialNameRows(languages: AdminLanguageResponse[]): NameRow[] {
  */
 export function AdminSongNewPage() {
   const [languages, setLanguages] = useState<AdminLanguageResponse[]>([]);
-  const [originalLanguageId, setOriginalLanguageId] = useState<number | null>(
-    null,
-  );
   const [names, setNames] = useState<NameRow[]>([]);
   const [languageIds, setLanguageIds] = useState<Set<number>>(new Set());
 
@@ -184,11 +181,6 @@ export function AdminSongNewPage() {
     setFormError(null);
     setMissingConditions([]);
 
-    if (!originalLanguageId) {
-      setFormError("원제 언어를 골라주세요.");
-      return;
-    }
-
     const nameInputs: CreateSongNameInput[] = names
       .filter((row) => row.included && row.name.trim().length > 0)
       .map((row) => ({
@@ -197,10 +189,14 @@ export function AdminSongNewPage() {
         primary: true,
       }));
 
+    if (nameInputs.length === 0) {
+      setFormError("이름을 하나 이상 입력해주세요.");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const song = await createSong({
-        originalLanguageId,
         names: nameInputs,
         languageIds: [...languageIds],
         producerIds: selectedProducers.map((p) => p.id),
@@ -221,7 +217,6 @@ export function AdminSongNewPage() {
   }
 
   function handleReset() {
-    setOriginalLanguageId(null);
     setNames(initialNameRows(languages));
     setLanguageIds(new Set());
     setSelectedProducers([]);
@@ -276,35 +271,17 @@ export function AdminSongNewPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>원제 언어 · 이름</CardTitle>
+          <CardTitle>이름</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <select
-            value={originalLanguageId ?? ""}
-            onChange={(event) =>
-              setOriginalLanguageId(
-                event.target.value ? Number(event.target.value) : null,
-              )
-            }
-            className={`${fieldClass} max-w-xs`}
-          >
-            <option value="">원제 언어 선택</option>
-            {languages.map((language) => (
-              <option key={language.id} value={language.id}>
-                {language.name}
-              </option>
-            ))}
-          </select>
-
           <p className="text-xs text-muted-foreground">
-            언어마다 이름은 1개까지입니다. 원제 언어는 이름이 반드시 있어야 하며
-            빼낼 수 없습니다 — 다른 언어는 필요 없으면 ×로 빼세요.
+            언어마다 이름은 1개까지입니다. 이름은 최소 1개 있어야 합니다 — 필요
+            없는 언어는 ×로 빼세요.
           </p>
 
           <div className="space-y-2">
             {names.map((row) => {
               const language = languages.find((l) => l.id === row.languageId);
-              const isOriginal = row.languageId === originalLanguageId;
 
               if (!row.included) {
                 return (
@@ -344,12 +321,6 @@ export function AdminSongNewPage() {
                     size="icon-sm"
                     aria-label={`${language?.name} 이름 빼기`}
                     onClick={() => toggleNameIncluded(row.languageId)}
-                    disabled={isOriginal}
-                    title={
-                      isOriginal
-                        ? "원제 언어는 이름이 있어야 합니다"
-                        : undefined
-                    }
                   >
                     ×
                   </Button>
@@ -366,8 +337,7 @@ export function AdminSongNewPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-xs text-muted-foreground">
-            원제 언어와 별개로 고릅니다 — 원제 언어를 골라도 자동으로 채워지지
-            않습니다.
+            이름과 별개로 고릅니다 — 자동으로 채워지지 않습니다.
           </p>
           <div className="flex flex-wrap gap-3">
             {languages.map((language) => (

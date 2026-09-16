@@ -8,7 +8,6 @@ import java.util.List;
 /** 곡 조회·수정 응답 — 이름·언어·프로듀서·정답 패턴까지 전부 담는다. */
 public record AdminSongDetailResponse(
     Long id,
-    Long originalLanguageId,
     SongStatus status,
     List<AdminSongNameResponse> names,
     List<Long> languageIds,
@@ -19,7 +18,6 @@ public record AdminSongDetailResponse(
     public static AdminSongDetailResponse from(SongDetail detail) {
         return new AdminSongDetailResponse(
             detail.id(),
-            detail.originalLanguageId(),
             detail.status(),
             detail.names().stream().map(AdminSongNameResponse::from).toList(),
             detail.languageIds(),

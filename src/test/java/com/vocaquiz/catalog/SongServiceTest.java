@@ -59,11 +59,10 @@ class SongServiceTest {
     }
 
     @Test
-    @DisplayName("완료 기준 1 — 원제 언어의 대표 이름 없이 곡을 만들면 400")
-    void rejectsCreationWithoutOriginalPrimaryName() {
+    @DisplayName("완료 기준 1 — 이름 없이 곡을 만들면 400 (D-072)")
+    void rejectsCreationWithoutAnyName() {
         assertThatThrownBy(() -> songService.create(
-            koreanId,
-            List.of(new SongNameInput(japaneseId, "千本桜", true)),
+            List.of(),
             List.of(), List.of(), null, SongStatus.DRAFT))
             .isInstanceOf(ApiException.class)
             .extracting(e -> ((ApiException) e).getErrorCode())
@@ -74,7 +73,6 @@ class SongServiceTest {
     @DisplayName("완료 기준 1 — 한 언어에 대표가 둘이면 400")
     void rejectsCreationWithTwoPrimaryNamesInSameLanguage() {
         assertThatThrownBy(() -> songService.create(
-            koreanId,
             List.of(
                 new SongNameInput(koreanId, "천본앵", true),
                 new SongNameInput(koreanId, "천본사쿠라", true)),
@@ -85,15 +83,13 @@ class SongServiceTest {
     }
 
     @Test
-    @DisplayName("원제 언어의 대표 이름만 있으면 최소 입력으로 만들어진다")
+    @DisplayName("이름 하나만 있으면 최소 입력으로 만들어진다 (D-072)")
     void createsWithMinimumInput() {
         SongSummary summary = songService.create(
-            koreanId,
             List.of(new SongNameInput(koreanId, "천본앵", true)),
             List.of(), List.of(), null, SongStatus.DRAFT);
 
         assertThat(summary.id()).isNotNull();
-        assertThat(summary.originalLanguageId()).isEqualTo(koreanId);
         assertThat(summary.status()).isEqualTo(SongStatus.DRAFT);
     }
 
@@ -101,7 +97,6 @@ class SongServiceTest {
     @DisplayName("완료 기준 5 — 저장한 곡의 song_answer가 패턴 전개 결과와 같다")
     void createsSongAnswerFromPattern() {
         SongSummary summary = songService.create(
-            koreanId,
             List.of(new SongNameInput(koreanId, "히토마니아", true)),
             List.of(), List.of(),
             "(히토|인간|사람)(마니아|매니아)",
@@ -116,7 +111,6 @@ class SongServiceTest {
         Long producerId = producerRepository.save(Producer.create("wowaka")).getId();
 
         SongSummary summary = songService.create(
-            koreanId,
             List.of(new SongNameInput(koreanId, "천본앵", true)),
             List.of(), List.of(producerId), null, SongStatus.DRAFT);
 
@@ -132,7 +126,6 @@ class SongServiceTest {
         Long producerId = producerRepository.save(Producer.create("wowaka")).getId();
 
         SongSummary summary = songService.create(
-            koreanId,
             List.of(new SongNameInput(koreanId, "천본앵", true)),
             List.of(), List.of(producerId, producerId), null, SongStatus.DRAFT);
 
@@ -142,10 +135,9 @@ class SongServiceTest {
     }
 
     @Test
-    @DisplayName("B3 — 원제 언어는 song_language에 자동으로 들어가지 않는다")
-    void doesNotAutoAddOriginalLanguageToSongLanguage() {
+    @DisplayName("언어를 주지 않으면 song_language는 비어 있다")
+    void doesNotAutoAddAnyLanguageToSongLanguage() {
         SongSummary summary = songService.create(
-            koreanId,
             List.of(new SongNameInput(koreanId, "천본앵", true)),
             List.of(japaneseId),
             List.of(), null, SongStatus.DRAFT);
@@ -157,10 +149,9 @@ class SongServiceTest {
     }
 
     @Test
-    @DisplayName("없는 언어를 원제 언어로 주면 404")
-    void rejectsUnknownOriginalLanguage() {
+    @DisplayName("없는 언어로 이름을 주면 404")
+    void rejectsUnknownLanguageInName() {
         assertThatThrownBy(() -> songService.create(
-            999_999L,
             List.of(new SongNameInput(999_999L, "x", true)),
             List.of(), List.of(), null, SongStatus.DRAFT))
             .isInstanceOf(ApiException.class)
@@ -172,7 +163,6 @@ class SongServiceTest {
     @DisplayName("D-062 — 조건을 하나도 못 채운 채 PUBLISHED로 만들면 400에 빠진 조건이 담긴다")
     void createRejectsPublishedWhenConditionsMissing() {
         assertThatThrownBy(() -> songService.create(
-            koreanId,
             List.of(new SongNameInput(koreanId, "천본앵", true)),
             List.of(), List.of(), null, SongStatus.PUBLISHED))
             .isInstanceOf(ApiException.class)
@@ -190,7 +180,6 @@ class SongServiceTest {
         Long producerId = producerRepository.save(Producer.create("wowaka")).getId();
 
         SongSummary summary = songService.create(
-            koreanId,
             List.of(
                 new SongNameInput(koreanId, "천본앵", true),
                 new SongNameInput(japaneseId, "千本桜", true)),
@@ -201,7 +190,6 @@ class SongServiceTest {
 
         SongDetail detail = songService.get(summary.id());
 
-        assertThat(detail.originalLanguageId()).isEqualTo(koreanId);
         assertThat(detail.status()).isEqualTo(SongStatus.DRAFT);
         assertThat(detail.names()).hasSize(2);
         assertThat(detail.languageIds()).containsExactly(japaneseId);
@@ -213,7 +201,6 @@ class SongServiceTest {
     @DisplayName("B2 — 수정 시 id 없는 이름은 추가, id 있는 이름은 갱신, 빠진 id는 삭제")
     void updateDiffsNamesByIdAddKeepAndRemove() {
         SongSummary summary = songService.create(
-            koreanId,
             List.of(
                 new SongNameInput(koreanId, "천본앵", true),
                 new SongNameInput(japaneseId, "千本桜", true)),
@@ -225,7 +212,6 @@ class SongServiceTest {
 
         songService.update(
             summary.id(),
-            koreanId,
             List.of(
                 new UpdateSongNameInput(keepId, koreanId, "천본앵(고침)", true),
                 new UpdateSongNameInput(null, koreanId, "센본자쿠라", false)),
@@ -240,13 +226,11 @@ class SongServiceTest {
     @DisplayName("다른 곡의(또는 없는) song_name id로 수정하면 404")
     void updateWithUnknownNameIdIsNotFound() {
         SongSummary summary = songService.create(
-            koreanId,
             List.of(new SongNameInput(koreanId, "천본앵", true)),
             List.of(), List.of(), null, SongStatus.DRAFT);
 
         assertThatThrownBy(() -> songService.update(
             summary.id(),
-            koreanId,
             List.of(new UpdateSongNameInput(999_999L, koreanId, "x", true)),
             List.of(), List.of(), null, SongStatus.DRAFT))
             .isInstanceOf(ApiException.class)
@@ -258,7 +242,6 @@ class SongServiceTest {
     @DisplayName("수정에서 answerPattern을 비우면 기존 패턴과 song_answer를 지운다")
     void updateClearsAnswerPatternWhenBlank() {
         SongSummary summary = songService.create(
-            koreanId,
             List.of(new SongNameInput(koreanId, "천본앵", true)),
             List.of(), List.of(), "천본앵", SongStatus.DRAFT);
         assertThat(songAnswerRepository.findBySongId(summary.id())).isNotEmpty();
@@ -266,7 +249,6 @@ class SongServiceTest {
 
         songService.update(
             summary.id(),
-            koreanId,
             List.of(new UpdateSongNameInput(nameId, koreanId, "천본앵", true)),
             List.of(), List.of(), "", SongStatus.DRAFT);
 
@@ -277,14 +259,12 @@ class SongServiceTest {
     @DisplayName("완료 기준 3 — 수집된 원곡 영상이 없으면 PUBLISHED 전환이 그 조건 하나만 담아 실패한다")
     void rejectsPublishTransitionWithoutOriginalVideo() {
         SongSummary summary = songService.create(
-            koreanId,
             List.of(new SongNameInput(koreanId, "천본앵", true)),
             List.of(), List.of(), "천본앵", SongStatus.DRAFT);
         Long nameId = songService.get(summary.id()).names().get(0).id();
 
         assertThatThrownBy(() -> songService.update(
             summary.id(),
-            koreanId,
             List.of(new UpdateSongNameInput(nameId, koreanId, "천본앵", true)),
             List.of(), List.of(), "천본앵", SongStatus.PUBLISHED))
             .isInstanceOf(ApiException.class)
@@ -296,7 +276,6 @@ class SongServiceTest {
     @DisplayName("조건 3개를 전부 채우면 PUBLISHED로 전환된다")
     void publishesWhenAllConditionsAreMet() {
         SongSummary summary = songService.create(
-            koreanId,
             List.of(new SongNameInput(koreanId, "천본앵", true)),
             List.of(), List.of(), "천본앵", SongStatus.DRAFT);
         Long nameId = songService.get(summary.id()).names().get(0).id();
@@ -307,7 +286,6 @@ class SongServiceTest {
 
         SongDetail detail = songService.update(
             summary.id(),
-            koreanId,
             List.of(new UpdateSongNameInput(nameId, koreanId, "천본앵", true)),
             List.of(), List.of(), "천본앵", SongStatus.PUBLISHED);
 
