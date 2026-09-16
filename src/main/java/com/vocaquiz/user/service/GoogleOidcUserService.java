@@ -1,5 +1,7 @@
 package com.vocaquiz.user.service;
 
+import com.vocaquiz.catalog.domain.Language;
+import com.vocaquiz.catalog.repository.LanguageRepository;
 import com.vocaquiz.user.domain.AppUser;
 import com.vocaquiz.user.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ public class GoogleOidcUserService extends OidcUserService {
 
     private final AppUserRepository appUserRepository;
     private final AdminEmailWhitelist adminEmailWhitelist;
+    private final LanguageRepository languageRepository;
 
     private static final String SUBJECT_ATTRIBUTE = "sub";
 
@@ -34,7 +37,8 @@ public class GoogleOidcUserService extends OidcUserService {
 
         AppUser user = appUserRepository.findByProviderAndProviderUserId(GOOGLE, providerUserId)
             .orElseGet(() -> appUserRepository.save(
-                AppUser.create(GOOGLE, providerUserId, email, adminEmailWhitelist.roleFor(email))));
+                AppUser.create(
+                    GOOGLE, providerUserId, email, adminEmailWhitelist.roleFor(email), defaultSiteLanguage())));
 
 
         return new DefaultOidcUser(
@@ -43,5 +47,11 @@ public class GoogleOidcUserService extends OidcUserService {
             oidcUser.getUserInfo(),
             SUBJECT_ATTRIBUTE
         );
+    }
+
+    /** 첫 로그인의 기본 사이트 언어 — English다 (D-071). */
+    private Language defaultSiteLanguage() {
+        return languageRepository.findByCode("EN")
+            .orElseThrow(() -> new IllegalStateException("EN language is not seeded"));
     }
 }
