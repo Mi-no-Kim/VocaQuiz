@@ -80,3 +80,25 @@ export interface AdminSongResponse {
   originalLanguageId: number;
   status: SongStatus;
 }
+
+/** `AdminSongDetailResponse.AdminSongNameResponse`(record)와 필드가 같다. */
+export interface AdminSongNameResponse {
+  id: number;
+  languageId: number;
+  name: string;
+  primary: boolean;
+}
+
+/**
+ * `GET`·`PUT /api/v1/admin/songs/{id}` 응답. `AdminSongDetailResponse.java`(record)와
+ * 필드가 같다 — 이름·언어·프로듀서·정답 패턴까지 전부 담는다(B2).
+ */
+export interface AdminSongDetailResponse {
+  id: number;
+  originalLanguageId: number;
+  status: SongStatus;
+  names: AdminSongNameResponse[];
+  languageIds: number[];
+  producerIds: number[];
+  answerPattern: string | null;
+}

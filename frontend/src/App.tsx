@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from "react-router";
 import { AdminGate } from "@/components/AdminGate";
+import { AdminSongEditPage } from "@/pages/AdminSongEditPage";
 import { AdminSongNewPage } from "@/pages/AdminSongNewPage";
 import { AdminVideosPage } from "@/pages/AdminVideosPage";
 
@@ -20,6 +21,14 @@ function App() {
           element={
             <AdminGate>
               <AdminSongNewPage />
+            </AdminGate>
+          }
+        />
+        <Route
+          path="/admin/songs/:id"
+          element={
+            <AdminGate>
+              <AdminSongEditPage />
             </AdminGate>
           }
         />
