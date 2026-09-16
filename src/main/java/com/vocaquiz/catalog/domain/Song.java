@@ -19,25 +19,15 @@ public class Song extends TimestampedEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "original_language_id", nullable = false)
-    private Language originalLanguage;
-
     @Column(length = 20, nullable = false)
     @Enumerated(value = EnumType.STRING)
     private SongStatus status;
 
-    public static Song create(Language originalLanguage, SongStatus status) {
+    public static Song create(SongStatus status) {
         Song song = new Song();
-        song.originalLanguage = originalLanguage;
         song.status = status;
 
         return song;
-    }
-
-    /** 곡 수정(PUT)에서 원제 언어를 바꾼다 (B2). */
-    public void changeOriginalLanguage(Language originalLanguage) {
-        this.originalLanguage = originalLanguage;
     }
 
     /** 곡 수정(PUT)에서 상태를 바꾼다. PUBLISHED 조건 검사는 서비스 쪽 책임이다 (D-062). */

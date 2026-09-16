@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 곡 만들기·조회·수정 (D-061, D-062). 리포지토리를 직접 주입받지 않는다 (D-070).
+ * 곡 만들기·조회·수정 (D-072, D-062). 리포지토리를 직접 주입받지 않는다 (D-070).
  */
 @RestController
 @RequestMapping("/api/v1/admin/songs")
@@ -34,7 +34,6 @@ public class AdminSongController {
     @PostMapping
     public ResponseEntity<AdminSongResponse> create(@RequestBody @Valid CreateSongRequest request) {
         SongSummary summary = songService.create(
-            request.originalLanguageId(),
             request.names().stream()
                 .map(n -> new SongNameInput(n.languageId(), n.name(), n.primary()))
                 .toList(),
@@ -55,7 +54,6 @@ public class AdminSongController {
     public AdminSongDetailResponse update(@PathVariable Long id, @RequestBody @Valid UpdateSongRequest request) {
         SongDetail detail = songService.update(
             id,
-            request.originalLanguageId(),
             request.names().stream()
                 .map(n -> new UpdateSongNameInput(n.id(), n.languageId(), n.name(), n.primary()))
                 .toList(),

@@ -34,7 +34,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 곡 생성·조회·수정 (D-061). PUBLISHED 전환 조건 검사(D-062)를 한 곳({@link
+ * 곡 생성·조회·수정 (D-072). PUBLISHED 전환 조건 검사(D-062)를 한 곳({@link
  * #missingConditionsFor})에 모아 생성·수정 양쪽에서 부른다.
  *
  * <p>song_answer는 여기서 건드리지 않는다 — {@link SongCatalogService#replaceAnswerPattern}·
@@ -56,7 +56,7 @@ public class SongService {
     private final SongCatalogService songCatalogService;
 
     /**
-     * 곡을 만든다. 최소 입력은 원제 언어와 그 언어의 대표 이름이다 (D-061).
+     * 곡을 만든다. 최소 입력은 이름 1개 이상이다 (D-072).
      *
      * <p>{@code status}로 PUBLISHED를 주면 {@link #missingConditionsFor}를 통과해야 한다.
      * 새로 만드는 곡은 수집된 ORIGINAL 영상이 있을 수 없어(D-062 조건 3) 이 경로로는 항상
@@ -68,7 +68,6 @@ public class SongService {
      */
     @Transactional
     public SongSummary create(
-            Long originalLanguageId,
             List<SongNameInput> names,
             List<Long> languageIds,
             List<Long> producerIds,
@@ -78,12 +77,9 @@ public class SongService {
         Set<Long> uniqueLanguageIds = new LinkedHashSet<>(languageIds == null ? List.of() : languageIds);
         Set<Long> uniqueProducerIds = new LinkedHashSet<>(producerIds == null ? List.of() : producerIds);
 
-        validateNames(originalLanguageId, nameList);
+        validateNames(nameList);
 
-        Language originalLanguage = languageRepository.findById(originalLanguageId)
-            .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "language " + originalLanguageId));
-
-        Song song = songRepository.save(Song.create(originalLanguage, status));
+        Song song = songRepository.save(Song.create(status));
 
         nameList.forEach(n -> songNameRepository.save(
             SongName.create(song, languageRef(n.languageId()), n.name(), n.primary())));
@@ -98,7 +94,7 @@ public class SongService {
             songCatalogService.replaceAnswerPattern(song.getId(), answerPattern);
         }
 
-        requirePublishReady(song.getId(), originalLanguageId, status);
+        requirePublishReady(song.getId(), status);
 
         return SongSummary.from(song);
     }
@@ -126,7 +122,6 @@ public class SongService {
     @Transactional
     public SongDetail update(
             Long id,
-            Long originalLanguageId,
             List<UpdateSongNameInput> names,
             List<Long> languageIds,
             List<Long> producerIds,
@@ -139,13 +134,10 @@ public class SongService {
         Set<Long> uniqueLanguageIds = new LinkedHashSet<>(languageIds == null ? List.of() : languageIds);
         Set<Long> uniqueProducerIds = new LinkedHashSet<>(producerIds == null ? List.of() : producerIds);
 
-        validateNames(originalLanguageId, nameList.stream()
+        validateNames(nameList.stream()
             .map(n -> new SongNameInput(n.languageId(), n.name(), n.primary()))
             .toList());
 
-        Language originalLanguage = languageRepository.findById(originalLanguageId)
-            .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "language " + originalLanguageId));
-        song.changeOriginalLanguage(originalLanguage);
         song.changeStatus(status);
 
         replaceNames(song, nameList);
@@ -164,17 +156,20 @@ public class SongService {
             songCatalogService.replaceAnswerPattern(id, answerPattern);
         }
 
-        requirePublishReady(id, originalLanguageId, status);
+        requirePublishReady(id, status);
 
         return songDetailOf(song);
     }
 
     /**
-     * 이름이 있는 언어마다 대표 이름은 정확히 1개, 원제 언어에는 대표 이름이 반드시 있어야
-     * 한다 (D-061). DB로는 막지 못해 여기서 막는다 — 부분 유니크 인덱스를 MySQL도 H2도
-     * 지원하지 않는다.
+     * 이름이 1개 이상 있어야 하고, 이름이 있는 언어마다 대표 이름은 정확히 1개다 (D-072).
+     * DB로는 막지 못해 여기서 막는다 — 부분 유니크 인덱스를 MySQL도 H2도 지원하지 않는다.
      */
-    private void validateNames(Long originalLanguageId, List<SongNameInput> names) {
+    private void validateNames(List<SongNameInput> names) {
+        if (names.isEmpty()) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST, "이름이 하나 이상 있어야 한다");
+        }
+
         Map<Long, Long> totalCountByLanguage = new LinkedHashMap<>();
         Map<Long, Long> primaryCountByLanguage = new LinkedHashMap<>();
         for (SongNameInput n : names) {
@@ -190,10 +185,6 @@ public class SongService {
                 throw new ApiException(ErrorCode.INVALID_REQUEST,
                     "언어 " + languageId + "의 대표 이름은 정확히 1개여야 한다 (현재 " + primaryCount + "개)");
             }
-        }
-
-        if (!totalCountByLanguage.containsKey(originalLanguageId)) {
-            throw new ApiException(ErrorCode.INVALID_REQUEST, "원제 언어의 대표 이름이 필요하다");
         }
     }
 
@@ -237,26 +228,26 @@ public class SongService {
             SongName.create(song, languageRef(n.languageId()), n.name(), n.primary())));
     }
 
-    private void requirePublishReady(Long songId, Long originalLanguageId, SongStatus status) {
+    private void requirePublishReady(Long songId, SongStatus status) {
         if (status != SongStatus.PUBLISHED) {
             return;
         }
 
-        List<String> missing = missingConditionsFor(songId, originalLanguageId);
+        List<String> missing = missingConditionsFor(songId);
         if (!missing.isEmpty()) {
             throw new ApiException(ErrorCode.INVALID_REQUEST, "PUBLISHED 조건을 채우지 못했다", missing);
         }
     }
 
     /**
-     * PUBLISHED 전환 조건 3가지 (D-062) — (1) 원제 언어의 대표 이름, (2) 정답 패턴,
+     * PUBLISHED 전환 조건 3가지 (D-062, D-072) — (1) 이름 1개 이상, (2) 정답 패턴,
      * (3) 수집된 ORIGINAL 영상 1개 이상. 빠진 것만 문구로 돌려준다(빈 리스트면 충족).
      */
-    private List<String> missingConditionsFor(Long songId, Long originalLanguageId) {
+    private List<String> missingConditionsFor(Long songId) {
         List<String> missing = new ArrayList<>();
 
-        if (!songNameRepository.existsBySongIdAndLanguageIdAndIsPrimary(songId, originalLanguageId, true)) {
-            missing.add("원제 언어의 대표 이름이 없다");
+        if (!songNameRepository.existsBySongId(songId)) {
+            missing.add("이름이 없다");
         }
         if (songAnswerPatternRepository.findBySongId(songId).isEmpty()) {
             missing.add("정답 패턴이 없다");
@@ -285,7 +276,6 @@ public class SongService {
 
         return new SongDetail(
             song.getId(),
-            song.getOriginalLanguage().getId(),
             song.getStatus(),
             names,
             languageIds,

@@ -324,7 +324,7 @@ GET    /api/v1/admin/videos/{id}
 PATCH  /api/v1/admin/videos/{id}            곡 연결 · kind · 보컬 · 크레딧 · playable 토글
 
 곡
-POST   /api/v1/admin/songs                  원제 언어 · 이름들 · 곡 언어 · 프로듀서 · 정답 패턴 · status
+POST   /api/v1/admin/songs                  이름들 · 곡 언어 · 프로듀서 · 정답 패턴 · status
 GET    /api/v1/admin/songs                  목록. 검색어 · status · 정렬
 GET    /api/v1/admin/songs/{id}
 PUT    /api/v1/admin/songs/{id}

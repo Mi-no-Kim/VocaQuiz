@@ -123,21 +123,22 @@ UNIQUE (channel_id, producer_id)
 - 조인 엔티티로 만들고 양쪽에서 `@OneToMany`로 탐색한다.
 - 대표 프로듀서 표시는 두지 않는다.
 
-### song ← D-006, D-040, D-051, D-062
+### song ← D-006, D-040, D-051, D-062, D-072
 
 ```
-id                     bigint  PK
-original_language_id   bigint  FK → language  NOT NULL   ← 원제가 어느 언어인가 (D-040)
-status                 varchar(20)  NOT NULL    DRAFT | PUBLISHED  ← PUBLISHED 전환 조건 (D-062)
+id          bigint  PK
+status      varchar(20)  NOT NULL    DRAFT | PUBLISHED  ← PUBLISHED 전환 조건 (D-062)
 created_at, updated_at
 ```
 
 - **제목 컬럼이 하나도 없다.** 전부 `song_name` 행이다 (D-040).
 - `lyrics_language_id`를 뺐다. 곡의 언어는 `song_language`로 간다 (D-051).
 - `search_keywords`를 뺐다. `song_answer`가 그 자리를 대신한다 (D-052, D-056).
-- `original_language_id`는 남는다. 표시할 때 원제를 병기하려면 어느 이름이 원제인지 알아야 한다 (D-007).
+- `original_language_id`를 없앴다 (D-072). 원제 병기 표시(D-007)는 이미 D-071이 site_language
+  폴백으로 대체했고, 이 컬럼을 쓰는 코드가 없어서 지웠다.
 - **`view_count` 컬럼 없음** — 조회수는 영상 단위이므로 `video`에 둔다.
-- PUBLISHED로 바꾸려면 원제 대표 이름 · 정답 패턴 · 수집된 ORIGINAL 영상이 있어야 한다 (D-062). 출제 쿼리(§6)는 PUBLISHED만 본다.
+- PUBLISHED로 바꾸려면 이름 1개 이상 · 정답 패턴 · 수집된 ORIGINAL 영상이 있어야 한다 (D-062, D-072).
+  출제 쿼리(§6)는 PUBLISHED만 본다.
 
 ### song_language ← D-051
 
@@ -152,7 +153,7 @@ UNIQUE (song_id, language_id)
 - 일본어와 한국어가 섞인 곡은 행을 둘 갖고, 두 필터 모두에 걸린다.
 - 옛 `lyrics_language_id`가 여기로 통합됐다. 곡 자체의 언어가 가사 언어보다 포괄적이다.
 
-### song_name ← D-040, D-056, D-061
+### song_name ← D-040, D-056, D-061, D-072
 
 ```
 id           bigint  PK
@@ -168,7 +169,7 @@ UNIQUE (song_id, language_id, name)
 - `is_primary = true` → 그 언어의 대표 표시 제목. `false` → 별칭 (약칭, 로마자, 통용 표기).
 - **`song_alias` 테이블은 없앴다** (D-040).
 - `normalized`와 `answer_pattern`을 뺐다. 정답 쪽은 `song_answer_pattern`으로 갈렸다 (D-056).
-- **이름이 있는 언어마다 대표 이름은 1개, 원제 언어에는 대표 필수 (D-061).** 서비스가 검증한다.
+- **이름이 있는 언어마다 대표 이름은 1개, 이름은 1개 이상 있어야 한다 (D-061, D-072).** 서비스가 검증한다.
   `UNIQUE (song_id, language_id) WHERE is_primary`는 MySQL도 H2도 지원하지 않아 DB 제약으로는 걸 수 없다.
 
 ### song_answer_pattern ← D-052, D-056

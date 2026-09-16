@@ -12,7 +12,6 @@ import com.vocaquiz.catalog.domain.SongStatus;
  */
 public record SongSummary(
     Long id,
-    Long originalLanguageId,
     SongStatus status
 ) {
 
@@ -20,7 +19,6 @@ public record SongSummary(
     static SongSummary from(Song song) {
         return new SongSummary(
             song.getId(),
-            song.getOriginalLanguage().getId(),
             song.getStatus());
     }
 }

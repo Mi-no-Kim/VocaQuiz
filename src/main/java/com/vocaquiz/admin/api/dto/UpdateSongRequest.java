@@ -13,7 +13,6 @@ import java.util.List;
  * 비우면 기존 패턴을 지운다.
  */
 public record UpdateSongRequest(
-    @NotNull Long originalLanguageId,
     @NotEmpty List<@Valid UpdateSongNameRequest> names,
     List<Long> languageIds,
     List<Long> producerIds,

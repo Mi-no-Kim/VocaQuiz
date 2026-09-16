@@ -36,8 +36,7 @@ class SongCatalogServiceTest {
 
     @BeforeEach
     void setUp() {
-        Language korean = languageRepository.findByCode("KO").orElseThrow();
-        songId = songRepository.save(Song.create(korean, SongStatus.DRAFT)).getId();
+        songId = songRepository.save(Song.create(SongStatus.DRAFT)).getId();
     }
 
     @Test
