@@ -108,7 +108,7 @@ class SongServiceTest {
     @Test
     @DisplayName("프로듀서 크레딧을 함께 만든다")
     void createsCreditsForGivenProducers() {
-        Long producerId = producerRepository.save(Producer.create("wowaka")).getId();
+        Long producerId = producerRepository.save(Producer.create()).getId();
 
         SongSummary summary = songService.create(
             List.of(new SongNameInput(koreanId, "천본앵", true)),
@@ -123,7 +123,7 @@ class SongServiceTest {
     @Test
     @DisplayName("같은 프로듀서를 두 번 주면 크레딧은 한 번만 만들어진다")
     void deduplicatesRepeatedProducerIds() {
-        Long producerId = producerRepository.save(Producer.create("wowaka")).getId();
+        Long producerId = producerRepository.save(Producer.create()).getId();
 
         SongSummary summary = songService.create(
             List.of(new SongNameInput(koreanId, "천본앵", true)),
@@ -177,7 +177,7 @@ class SongServiceTest {
     @Test
     @DisplayName("조회는 이름·언어·프로듀서·정답 패턴을 전부 돌려준다")
     void getReturnsFullDetail() {
-        Long producerId = producerRepository.save(Producer.create("wowaka")).getId();
+        Long producerId = producerRepository.save(Producer.create()).getId();
 
         SongSummary summary = songService.create(
             List.of(

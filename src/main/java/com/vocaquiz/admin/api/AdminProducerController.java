@@ -2,6 +2,7 @@ package com.vocaquiz.admin.api;
 
 import com.vocaquiz.admin.api.dto.AdminProducerResponse;
 import com.vocaquiz.admin.api.dto.CreateProducerRequest;
+import com.vocaquiz.catalog.service.ProducerNameInput;
 import com.vocaquiz.catalog.service.ProducerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * 프로듀서 자동완성·생성 (D-063).
+ * 프로듀서 자동완성·생성 (D-063, D-073).
  *
  * <p>리포지토리를 직접 주입받지 않는다 (D-070). 중복 검사도 {@link ProducerService}가 한다.
  */
@@ -33,6 +34,9 @@ public class AdminProducerController {
     @PostMapping
     public ResponseEntity<AdminProducerResponse> create(@RequestBody @Valid CreateProducerRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(AdminProducerResponse.from(producerService.create(request.name())));
+            .body(AdminProducerResponse.from(producerService.create(
+                request.names().stream()
+                    .map(n -> new ProducerNameInput(n.languageId(), n.name(), n.primary()))
+                    .toList())));
     }
 }

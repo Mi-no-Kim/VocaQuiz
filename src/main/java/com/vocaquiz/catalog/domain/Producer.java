@@ -7,9 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(
-    name = "producer",
-    uniqueConstraints = @UniqueConstraint(name = "uk_producer_name", columnNames = "name"))
+@Table(name = "producer")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Producer extends CreatedAtEntity {
@@ -18,13 +16,7 @@ public class Producer extends CreatedAtEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(length = 100, nullable = false)
-    private String name;
-
-    public static Producer create(String name) {
-        Producer producer = new Producer();
-        producer.name = name;
-
-        return producer;
+    public static Producer create() {
+        return new Producer();
     }
 }
