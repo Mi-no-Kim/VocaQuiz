@@ -61,10 +61,20 @@ export interface AdminLanguageResponse {
   name: string;
 }
 
-/** `/api/v1/admin/producers` 응답. `AdminProducerResponse.java`(record)와 필드가 같다. */
+/** `AdminProducerResponse.AdminProducerNameResponse`(record)와 필드가 같다. */
+export interface AdminProducerNameResponse {
+  languageId: number;
+  name: string;
+  primary: boolean;
+}
+
+/**
+ * `/api/v1/admin/producers` 응답. `AdminProducerResponse.java`(record)와 필드가 같다 —
+ * 이름은 이제 언어별로 여러 개다 (D-073).
+ */
 export interface AdminProducerResponse {
   id: number;
-  name: string;
+  names: AdminProducerNameResponse[];
 }
 
 /** `POST /api/v1/admin/answer-patterns/check` 응답. `CheckAnswerPatternResponse.java`(record)와 필드가 같다 (D-052). */

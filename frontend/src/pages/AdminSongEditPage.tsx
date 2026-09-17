@@ -9,7 +9,7 @@ import { Link, useParams } from "react-router";
 import { ApiError } from "@/api/client";
 import { fetchLanguages } from "@/api/languages";
 import { checkAnswerPattern } from "@/api/answerPatterns";
-import { createProducer, searchProducers } from "@/api/producers";
+import { searchProducers } from "@/api/producers";
 import { fetchSong, updateSong, type UpdateSongNameInput } from "@/api/songs";
 import type {
   AdminLanguageResponse,
@@ -20,6 +20,7 @@ import type {
 } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CreateProducerDialog } from "@/components/CreateProducerDialog";
 
 const STATUS_OPTIONS: { value: SongStatus; label: string }[] = [
   { value: "DRAFT", label: "초안" },
@@ -61,6 +62,11 @@ function buildNameRows(
   });
 }
 
+/** 프로듀서 이름은 이제 언어별로 여러 개일 수 있어 전부 이어붙여 보여준다 (D-073). */
+function producerDisplayName(producer: AdminProducerResponse): string {
+  return producer.names.map((n) => n.name).join(" / ");
+}
+
 /**
  * 곡 수정 화면 (P1-3-4). commit 6의 곡 만들기 화면과 카드 구성·이름 행 방식을 그대로
  * 따른다 — 다른 점은 서버에서 기존 값을 받아와 채우는 것과, 상태(status)를 여기서
@@ -89,6 +95,7 @@ export function AdminSongEditPage() {
     AdminProducerResponse[]
   >([]);
   const [producerMessage, setProducerMessage] = useState<string | null>(null);
+  const [creatingProducer, setCreatingProducer] = useState(false);
 
   const [answerPattern, setAnswerPattern] = useState("");
   const [patternCheck, setPatternCheck] =
@@ -225,22 +232,6 @@ export function AdminSongEditPage() {
 
   function handleRemoveProducer(id: number) {
     setSelectedProducers((prev) => prev.filter((p) => p.id !== id));
-  }
-
-  async function handleCreateProducer() {
-    const name = producerQuery.trim();
-    if (!name) return;
-    try {
-      const producer = await createProducer(name);
-      setAllProducers((prev) => [...prev, producer]);
-      handleAddProducer(producer);
-    } catch (error) {
-      if (error instanceof ApiError && error.errorCode === "CONFLICT") {
-        setProducerMessage("이미 있는 이름입니다.");
-        return;
-      }
-      setProducerMessage("프로듀서를 만들지 못했습니다.");
-    }
   }
 
   async function handleCheckPattern() {
@@ -449,6 +440,10 @@ export function AdminSongEditPage() {
           <CardTitle>프로듀서</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            검색은 모든 언어의 이름을 다 뒤진다 — 어느 언어로 등록됐든 찾을 수
+            있다 (D-073).
+          </p>
           <div className="flex gap-2">
             <div className="relative min-w-0 flex-1">
               <input
@@ -468,7 +463,7 @@ export function AdminSongEditPage() {
                         className="w-full justify-start"
                         onClick={() => handleAddProducer(producer)}
                       >
-                        {producer.name} 추가
+                        {producerDisplayName(producer)}
                       </Button>
                     </li>
                   ))}
@@ -478,7 +473,7 @@ export function AdminSongEditPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={handleCreateProducer}
+              onClick={() => setCreatingProducer(true)}
             >
               새로 만들기
             </Button>
@@ -493,12 +488,12 @@ export function AdminSongEditPage() {
                   key={producer.id}
                   className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs"
                 >
-                  {producer.name}
+                  {producerDisplayName(producer)}
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon-xs"
-                    aria-label={`${producer.name} 제거`}
+                    aria-label={`${producerDisplayName(producer)} 제거`}
                     onClick={() => handleRemoveProducer(producer.id)}
                   >
                     ×
@@ -506,6 +501,17 @@ export function AdminSongEditPage() {
                 </span>
               ))}
             </div>
+          ) : null}
+          {creatingProducer ? (
+            <CreateProducerDialog
+              languages={languages}
+              onCancel={() => setCreatingProducer(false)}
+              onCreated={(producer) => {
+                setAllProducers((prev) => [...prev, producer]);
+                handleAddProducer(producer);
+                setCreatingProducer(false);
+              }}
+            />
           ) : null}
         </CardContent>
       </Card>
