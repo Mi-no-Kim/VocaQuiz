@@ -32,18 +32,32 @@ display_order  int  NOT NULL    표시 폴백 순서 — EN이 0. 오름차순�
 - 언어 추가가 **스키마 변경이 아니라 행 추가**가 된다 (D-036).
 - 곡 이름(D-040)과 보컬 이름(D-041)이 이 테이블을 공유한다.
 
-### producer ← D-013, D-053, D-063
+### producer / producer_name ← D-013, D-053, D-073
 
 ```
-id          bigint  PK
-name        varchar(100)  UNIQUE NOT NULL    원어 표기. wowaka, DECO*27  ← D-063
-created_at  timestamp
+producer
+  id          bigint  PK
+  created_at  timestamp
+
+producer_name
+  id           bigint  PK
+  producer_id  bigint    FK → producer
+  language_id  bigint    FK → language
+  name         varchar(100)  NOT NULL
+  is_primary   boolean  NOT NULL DEFAULT false
+  created_at   timestamp
+  UNIQUE (language_id, name)
 ```
 
-- **언어별 이름을 두지 않는다** (D-013). 보컬과 다르게 가는 이유는 D-041에 적혀 있다.
 - 곡·영상과의 연결은 `song_credit` / `video_credit`이 맡는다 (D-053). `song_producer`는 없앴다.
-- `name`은 유일하다 (D-063). 관리자 화면은 자동완성으로 기존 행을 고르게 하고, 없을 때만 만든다.
+- **이름은 이제 언어별로 여러 개다** (D-073). `song_name`과 같은 구조이고 검증 규칙도 같다 —
+  이름이 있는 언어마다 대표 이름은 정확히 1개, 이름은 1개 이상 있어야 한다. 서비스가 검증한다.
+- `UNIQUE (language_id, name)`은 **프로듀서 단위가 아니라 언어 단위로 유일하다.** 같은 언어에서
+  같은 표기로 다시 만들면 409(D-063의 취지를 이어받음). 다른 언어에서는 같은 표기를 다시 써도 된다.
   비교는 `utf8mb4_bin`이라 `DECO*27`과 `deco*27`은 서로 다른 이름이다 (D-057).
+- 관리자 화면은 자동완성으로 기존 프로듀서를 고르게 하고, 없을 때만 만든다. 검색은 언어 구분 없이
+  `producer_name.name` 전체를 훑는다.
+- **기존 프로듀서에 이름을 추가·수정하는 화면은 아직 없다** (O-37). 지금은 생성 시 이름 1개만 받는다.
 
 ### vocal / vocal_name ← D-037, D-041, D-064
 
@@ -231,7 +245,7 @@ role         varchar(32)  NOT NULL   ← DB는 varchar, 서버는 enum (D-045와
 UNIQUE (song_id, producer_id, role)
 ```
 
-- 옛 `song_producer`를 대신한다. 다대다와 원어 표기 규칙은 D-013 그대로다.
+- 옛 `song_producer`를 대신한다. 다대다는 D-013 그대로다. 이름은 이제 언어별로 여러 개다 (D-073) — `producer` / `producer_name` 참고.
 - UNIQUE에 `role`이 들어간 이유는 한 사람이 한 곡에서 두 역할을 맡을 수 있어서다.
 - **지금은 role 값을 하나만 쓴다.** 관리자 화면은 이름만 받고 role을 자동으로 채운다.
 - 값이 늘어도 DDL이 필요 없다. 역할 값의 목록은 아직 정하지 않았다 — O-32.
@@ -510,7 +524,7 @@ FROM song s WHERE s.status = 'PUBLISHED'
 | `song_producer` 테이블       | D-053 — `song_credit`(역할 포함)으로                 |
 | `channel.producer_id`        | D-054 — `channel_producer`로 (다대다)                |
 | `song.title_ko` / `title_en` | D-040 — `song_name` 행으로                           |
-| `producer.name_ko`           | D-013 — 원어 표기 하나만 (보컬과 다름, 근거는 D-041) |
+| `producer.name_ko`           | D-073 — `producer_name` 행으로                       |
 | `round.hint_level`           | D-018 — 점진 방식은 인트로 퀴즈 전용                 |
 | 힌트 콘텐츠 테이블           | D-029 — 이미 가진 메타데이터만 쓴다                  |
 | `segment.attributes` JSON    | D-045 — 속성이 유한하므로 컬럼이 맞다                |
