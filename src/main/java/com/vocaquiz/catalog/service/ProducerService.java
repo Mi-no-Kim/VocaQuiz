@@ -17,10 +17,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 프로듀서 자동완성과 생성 (D-063, D-073).
+ * 프로듀서 자동완성과 생성 (D-063, D-073, D-074).
  *
  * <p>이름은 이제 언어별로 여러 개다. 유일함의 기준은 프로듀서 전체가 아니라 언어 안이다 —
  * {@code producer_name}의 (language_id, name) UNIQUE가 이를 보장한다 (D-073).
+ *
+ * <p>검색은 표시 이름(D-073: {@code producer_name.name} 전체)으로 한다 — 곡과 달리
+ * 프로듀서 이름은 아직 "정답 처리" 대상이 아니라서(D-056 같은 정답 패턴이 없다) 검색과
+ * 표시가 같은 텍스트를 본다. 표시값(main/sub 표기법, D-074)은 검색 기준과 별개다.
  */
 @Service
 @RequiredArgsConstructor
@@ -30,6 +34,7 @@ public class ProducerService {
     private final ProducerRepository producerRepository;
     private final ProducerNameRepository producerNameRepository;
     private final LanguageRepository languageRepository;
+    private final NameDisplayResolver nameDisplayResolver;
 
     /**
      * {@code q}가 없으면 전체를 준다. 이름이 더는 프로듀서 자신의 컬럼이 아니라 여러 개라
@@ -40,13 +45,14 @@ public class ProducerService {
      *
      * <p>{@code q}에 든 {@code %}·{@code _}는 LIKE 와일드카드가 아니라 리터럴로 다룬다.
      */
-    public List<ProducerSummary> search(String q) {
+    public List<ProducerSummary> search(String q, NamePreference producerNamePreference) {
         List<Long> producerIds = (q == null || q.isBlank())
             ? producerRepository.findAll().stream().map(Producer::getId).toList()
             : producerNameRepository.searchProducerIdsByName("%" + escapeLike(q) + "%");
 
         return producerIds.stream()
-            .map(id -> ProducerSummary.of(id, producerNameRepository.findByProducerId(id)))
+            .map(id -> ProducerSummary.of(
+                id, producerNameRepository.findByProducerId(id), nameDisplayResolver, producerNamePreference))
             .toList();
     }
 
@@ -57,7 +63,7 @@ public class ProducerService {
      * <p>같은 언어에 같은 표기가 이미 있으면 409 (D-063, D-073).
      */
     @Transactional
-    public ProducerSummary create(List<ProducerNameInput> names) {
+    public ProducerSummary create(List<ProducerNameInput> names, NamePreference producerNamePreference) {
         List<ProducerNameInput> nameList = names == null ? List.of() : names;
         validateNames(nameList);
 
@@ -68,7 +74,7 @@ public class ProducerService {
                 ProducerName.create(producer, languageRef(n.languageId()), n.name(), n.primary())))
             .toList();
 
-        return ProducerSummary.of(producer.getId(), saved);
+        return ProducerSummary.of(producer.getId(), saved, nameDisplayResolver, producerNamePreference);
     }
 
     /**

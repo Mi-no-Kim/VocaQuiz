@@ -6,13 +6,15 @@ import java.util.List;
 
 public record AdminProducerResponse(
     Long id,
-    List<AdminProducerNameResponse> names
+    List<AdminProducerNameResponse> names,
+    AdminDisplayNameResponse displayName
 ) {
 
     public static AdminProducerResponse from(ProducerSummary summary) {
         return new AdminProducerResponse(
             summary.id(),
-            summary.names().stream().map(AdminProducerNameResponse::from).toList());
+            summary.names().stream().map(AdminProducerNameResponse::from).toList(),
+            AdminDisplayNameResponse.from(summary.displayName()));
     }
 
     /** `ProducerSummary.ProducerNameSummary`(record)와 필드가 같다. */
