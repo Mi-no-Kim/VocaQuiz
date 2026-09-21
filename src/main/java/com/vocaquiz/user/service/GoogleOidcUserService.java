@@ -36,9 +36,20 @@ public class GoogleOidcUserService extends OidcUserService {
         String email = oidcUser.getEmail();
 
         AppUser user = appUserRepository.findByProviderAndProviderUserId(GOOGLE, providerUserId)
-            .orElseGet(() -> appUserRepository.save(
-                AppUser.create(
-                    GOOGLE, providerUserId, email, adminEmailWhitelist.roleFor(email), defaultSiteLanguage())));
+            .orElseGet(() -> {
+                Language defaultLanguage = defaultSiteLanguage();
+                return appUserRepository.save(
+                    AppUser.create(
+                        GOOGLE,
+                        providerUserId,
+                        email,
+                        adminEmailWhitelist.roleFor(email),
+                        defaultLanguage,
+                        defaultLanguage,
+                        null,
+                        defaultLanguage,
+                        null));
+            });
 
 
         return new DefaultOidcUser(
@@ -49,7 +60,7 @@ public class GoogleOidcUserService extends OidcUserService {
         );
     }
 
-    /** 첫 로그인의 기본 사이트 언어 — English다 (D-071). */
+    /** 첫 로그인의 기본값 — 사이트 언어·곡명 main·작곡가명 main 전부 English다 (D-071, D-074). */
     private Language defaultSiteLanguage() {
         return languageRepository.findByCode("EN")
             .orElseThrow(() -> new IllegalStateException("EN language is not seeded"));
