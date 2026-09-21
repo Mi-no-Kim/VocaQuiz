@@ -1,7 +1,10 @@
 import { apiFetch } from "@/api/client";
 import type {
+  AdminPageResponse,
   AdminSongDetailResponse,
+  AdminSongListItemResponse,
   AdminSongResponse,
+  AdminSongSort,
   SongStatus,
 } from "@/api/types";
 
@@ -66,4 +69,30 @@ export function updateSong(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
+}
+
+export interface FetchSongsParams {
+  q?: string;
+  status?: SongStatus;
+  sort?: AdminSongSort;
+  page?: number;
+}
+
+/**
+ * 관리자 곡 목록 (P1-3-5). `q`는 정답 패턴(D-056)에서만 찾는다 — 패턴 없는 곡은
+ * 안 걸린다. 페이지 크기는 서버가 50으로 고정한다.
+ */
+export function fetchSongs(
+  params: FetchSongsParams = {},
+): Promise<AdminPageResponse<AdminSongListItemResponse>> {
+  const search = new URLSearchParams();
+  if (params.q && params.q.trim()) search.set("q", params.q.trim());
+  if (params.status) search.set("status", params.status);
+  if (params.sort) search.set("sort", params.sort);
+  if (params.page) search.set("page", String(params.page));
+
+  const query = search.toString();
+  return apiFetch<AdminPageResponse<AdminSongListItemResponse>>(
+    `/api/v1/admin/songs${query ? `?${query}` : ""}`,
+  );
 }

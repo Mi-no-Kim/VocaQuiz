@@ -69,12 +69,23 @@ export interface AdminProducerNameResponse {
 }
 
 /**
+ * main/sub 표기법(D-074)으로 정한 표시값. `AdminDisplayNameResponse.java`(record)와
+ * 필드가 같다. `secondary`는 main·sub 값이 둘 다 있고 서로 다를 때만 채워진다 —
+ * 있으면 굵기·색·크기로 구분해 같이 보여주고, "메인"·"서브"라는 말은 쓰지 않는다.
+ */
+export interface AdminDisplayNameResponse {
+  primary: string | null;
+  secondary: string | null;
+}
+
+/**
  * `/api/v1/admin/producers` 응답. `AdminProducerResponse.java`(record)와 필드가 같다 —
- * 이름은 이제 언어별로 여러 개다 (D-073).
+ * 이름은 이제 언어별로 여러 개다 (D-073). `displayName`은 D-074가 정한 표시값이다.
  */
 export interface AdminProducerResponse {
   id: number;
   names: AdminProducerNameResponse[];
+  displayName: AdminDisplayNameResponse;
 }
 
 /** `POST /api/v1/admin/answer-patterns/check` 응답. `CheckAnswerPatternResponse.java`(record)와 필드가 같다 (D-052). */
@@ -109,4 +120,33 @@ export interface AdminSongDetailResponse {
   languageIds: number[];
   producerIds: number[];
   answerPattern: string | null;
+}
+
+/**
+ * `GET /api/v1/admin/songs` 목록 행 하나. `AdminSongListItemResponse.java`(record)와
+ * 필드가 같다 (P1-3-5). `missingConditions`가 비어 있으면 작업 완료(D-062)다.
+ */
+export interface AdminSongListItemResponse {
+  id: number;
+  status: SongStatus;
+  name: AdminDisplayNameResponse;
+  missingConditions: string[];
+  createdAt: string;
+}
+
+/** `sort` 정렬 기준 (P1-3-5). */
+export type AdminSongSort = "LATEST" | "OLDEST";
+
+/**
+ * 서버가 `PagedModel`(Spring Data)로 주는 페이지 모양. 페이지 크기는 50 고정이다
+ * (P1-3-5 결정).
+ */
+export interface AdminPageResponse<T> {
+  content: T[];
+  page: {
+    size: number;
+    number: number;
+    totalElements: number;
+    totalPages: number;
+  };
 }

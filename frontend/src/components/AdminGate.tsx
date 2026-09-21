@@ -90,6 +90,12 @@ export function AdminGate({ children }: { children: ReactNode }) {
             영상
           </Link>
           <Link
+            to="/admin/songs"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            곡 목록
+          </Link>
+          <Link
             to="/admin/songs/new"
             className="text-muted-foreground hover:text-foreground"
           >
