@@ -244,7 +244,10 @@ export function AdminSongNewPage() {
               <Link to="/" className={buttonVariants({ variant: "outline" })}>
                 메뉴로
               </Link>
-              <Link to="/admin/songs" className={buttonVariants({ variant: "ghost" })}>
+              <Link
+                to="/admin/songs"
+                className={buttonVariants({ variant: "ghost" })}
+              >
                 나가기
               </Link>
             </div>
