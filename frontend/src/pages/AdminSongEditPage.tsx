@@ -21,6 +21,7 @@ import type {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateProducerDialog } from "@/components/CreateProducerDialog";
+import { DisplayName } from "@/components/DisplayName";
 
 const STATUS_OPTIONS: { value: SongStatus; label: string }[] = [
   { value: "DRAFT", label: "초안" },
@@ -62,9 +63,10 @@ function buildNameRows(
   });
 }
 
-/** 프로듀서 이름은 이제 언어별로 여러 개일 수 있어 전부 이어붙여 보여준다 (D-073). */
-function producerDisplayName(producer: AdminProducerResponse): string {
-  return producer.names.map((n) => n.name).join(" / ");
+/** 화면에 그릴 수 없는 곳(aria-label 등)에 쓰는 문자열판 — 표시값은 D-074가 정한다. */
+function producerDisplayText(producer: AdminProducerResponse): string {
+  const { primary, secondary } = producer.displayName;
+  return secondary ? `${primary} ${secondary}` : (primary ?? "");
 }
 
 /**
@@ -463,7 +465,7 @@ export function AdminSongEditPage() {
                         className="w-full justify-start"
                         onClick={() => handleAddProducer(producer)}
                       >
-                        {producerDisplayName(producer)}
+                        <DisplayName name={producer.displayName} />
                       </Button>
                     </li>
                   ))}
@@ -488,12 +490,12 @@ export function AdminSongEditPage() {
                   key={producer.id}
                   className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs"
                 >
-                  {producerDisplayName(producer)}
+                  <DisplayName name={producer.displayName} />
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon-xs"
-                    aria-label={`${producerDisplayName(producer)} 제거`}
+                    aria-label={`${producerDisplayText(producer)} 제거`}
                     onClick={() => handleRemoveProducer(producer.id)}
                   >
                     ×

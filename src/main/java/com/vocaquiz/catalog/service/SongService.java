@@ -22,10 +22,15 @@ import com.vocaquiz.catalog.repository.VideoRepository;
 import com.vocaquiz.common.error.ApiException;
 import com.vocaquiz.common.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -34,8 +39,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 곡 생성·조회·수정 (D-072). PUBLISHED 전환 조건 검사(D-062)를 한 곳({@link
- * #missingConditionsFor})에 모아 생성·수정 양쪽에서 부른다.
+ * 곡 생성·조회·수정·목록 (D-072, ARCH §5.4). PUBLISHED 전환 조건 검사(D-062)를 한 곳
+ * ({@link #missingConditionsFrom})에 모아 단건·목록 양쪽에서 부른다.
  *
  * <p>song_answer는 여기서 건드리지 않는다 — {@link SongCatalogService#replaceAnswerPattern}·
  * {@link SongCatalogService#clearAnswerPattern}이 유일한 경로다 (D-052).
@@ -44,6 +49,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class SongService {
+
+    /** 관리자 곡 목록 페이지 크기 (D-074, 이슈 P1-3-5 결정). */
+    private static final int PAGE_SIZE = 50;
 
     private final SongRepository songRepository;
     private final LanguageRepository languageRepository;
@@ -54,11 +62,12 @@ public class SongService {
     private final ProducerRepository producerRepository;
     private final VideoRepository videoRepository;
     private final SongCatalogService songCatalogService;
+    private final NameDisplayResolver nameDisplayResolver;
 
     /**
      * 곡을 만든다. 최소 입력은 이름 1개 이상이다 (D-072).
      *
-     * <p>{@code status}로 PUBLISHED를 주면 {@link #missingConditionsFor}를 통과해야 한다.
+     * <p>{@code status}로 PUBLISHED를 주면 {@link #missingConditionsFrom}을 통과해야 한다.
      * 새로 만드는 곡은 수집된 ORIGINAL 영상이 있을 수 없어(D-062 조건 3) 이 경로로는 항상
      * 걸린다 — 즉 지금은 DRAFT로 만든 뒤 조건이 갖춰지면 수정(PUT)으로 PUBLISHED 전환하는
      * 것만 가능하다.
@@ -117,7 +126,7 @@ public class SongService {
      * SongCatalogService#clearAnswerPattern}) — PUT은 전체 교체가 관례라, 필드를 안 보내는
      * 것도 "비어 있음"으로 본다.
      *
-     * <p>{@code status}로 PUBLISHED를 주면 {@link #missingConditionsFor}를 통과해야 한다.
+     * <p>{@code status}로 PUBLISHED를 주면 {@link #missingConditionsFrom}을 통과해야 한다.
      */
     @Transactional
     public SongDetail update(
@@ -159,6 +168,48 @@ public class SongService {
         requirePublishReady(id, status);
 
         return songDetailOf(song);
+    }
+
+    /**
+     * 관리자 곡 목록 (D-074, ARCH §5.4). {@code query}가 있으면 {@code song_answer.normalized}
+     * 부분 일치로만 찾는다 — 정답 패턴이 없는 곡은 절대 안 걸린다(완료 기준 2). {@code query}가
+     * 없으면 (status만 걸러) 전체를 준다. {@code sortDirection}은 {@code createdAt} 기준이다.
+     *
+     * <p>표시 이름·미작업 사유는 곡마다 따로 조회하면 N+1이 되어, 이 페이지에 걸린 song id
+     * 전체에 대해 배치 쿼리 몇 번으로 미리 모아 계산한다.
+     */
+    public Page<SongListItem> list(
+            String query, SongStatus status, Sort.Direction sortDirection, int page, NamePreference songNamePreference) {
+        Pageable pageable = PageRequest.of(page, PAGE_SIZE, Sort.by(sortDirection, "createdAt"));
+
+        Page<Song> songs = (query == null || query.isBlank())
+            ? songRepository.findAllByOptionalStatus(status, pageable)
+            : songRepository.searchByNormalizedAndOptionalStatus(likePattern(query), status, pageable);
+
+        List<Long> songIds = songs.getContent().stream().map(Song::getId).toList();
+        if (songIds.isEmpty()) {
+            return songs.map(s -> null);
+        }
+
+        Set<Long> withName = new HashSet<>(songNameRepository.findSongIdsWithNameIn(songIds));
+        Set<Long> withPattern = new HashSet<>(songAnswerPatternRepository.findSongIdsWithPatternIn(songIds));
+        Set<Long> withCollectedOriginal = new HashSet<>(videoRepository.findSongIdsWithCollectedVideo(
+            songIds, VideoKind.ORIGINAL, VideoCollectionStatus.COLLECTED));
+
+        Map<Long, Map<Long, String>> namesBySongId = songNameRepository.findBySongIdIn(songIds).stream()
+            .collect(Collectors.groupingBy(
+                sn -> sn.getSong().getId(),
+                Collectors.toMap(sn -> sn.getLanguage().getId(), SongName::getName, (a, b) -> a)));
+
+        return songs.map(song -> new SongListItem(
+            song.getId(),
+            song.getStatus(),
+            nameDisplayResolver.resolve(namesBySongId.getOrDefault(song.getId(), Map.of()), songNamePreference),
+            missingConditionsFrom(
+                withName.contains(song.getId()),
+                withPattern.contains(song.getId()),
+                withCollectedOriginal.contains(song.getId())),
+            song.getCreatedAt()));
     }
 
     /**
@@ -239,21 +290,32 @@ public class SongService {
         }
     }
 
+    /** 단건용 — 곡 하나를 직접 조회해 {@link #missingConditionsFrom}에 넘긴다 (D-062, D-072). */
+    private List<String> missingConditionsFor(Long songId) {
+        boolean hasName = songNameRepository.existsBySongId(songId);
+        boolean hasPattern = songAnswerPatternRepository.findBySongId(songId).isPresent();
+        boolean hasCollectedOriginal = videoRepository.existsBySongIdAndKindAndCollectionStatus(
+            songId, VideoKind.ORIGINAL, VideoCollectionStatus.COLLECTED);
+
+        return missingConditionsFrom(hasName, hasPattern, hasCollectedOriginal);
+    }
+
     /**
      * PUBLISHED 전환 조건 3가지 (D-062, D-072) — (1) 이름 1개 이상, (2) 정답 패턴,
      * (3) 수집된 ORIGINAL 영상 1개 이상. 빠진 것만 문구로 돌려준다(빈 리스트면 충족).
+     * 단건 조회({@link #missingConditionsFor})와 목록 배치 조회({@link #list}) 양쪽이
+     * 같은 문구를 쓰도록 조건 판단만 이 한 곳에 모은다.
      */
-    private List<String> missingConditionsFor(Long songId) {
+    private List<String> missingConditionsFrom(boolean hasName, boolean hasPattern, boolean hasCollectedOriginal) {
         List<String> missing = new ArrayList<>();
 
-        if (!songNameRepository.existsBySongId(songId)) {
+        if (!hasName) {
             missing.add("이름이 없다");
         }
-        if (songAnswerPatternRepository.findBySongId(songId).isEmpty()) {
+        if (!hasPattern) {
             missing.add("정답 패턴이 없다");
         }
-        if (!videoRepository.existsBySongIdAndKindAndCollectionStatus(
-                songId, VideoKind.ORIGINAL, VideoCollectionStatus.COLLECTED)) {
+        if (!hasCollectedOriginal) {
             missing.add("수집된 원곡(ORIGINAL) 영상이 없다");
         }
 
@@ -295,5 +357,18 @@ public class SongService {
             throw new ApiException(ErrorCode.NOT_FOUND, "producer " + producerId);
         }
         return producerRepository.getReferenceById(producerId);
+    }
+
+    /** 검색어를 정답 패턴과 같은 규칙으로 정규화하고 LIKE 패턴으로 감싼다 (ARCH §5.4). */
+    private String likePattern(String rawQuery) {
+        return "%" + escapeLike(TextNormalizer.normalize(rawQuery)) + "%";
+    }
+
+    /** LIKE의 이스케이프 문자 자신부터 이스케이프해야 뒤에 붙이는 {@code %}·{@code _}가 겹치지 않는다. */
+    private static String escapeLike(String raw) {
+        return raw
+            .replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_");
     }
 }

@@ -38,6 +38,7 @@ com.vocaquiz
 │   ├── repository/
 │   ├── service/    SongCatalogService, VideoIngestService, SegmentService,
 │   │               TextNormalizer, AnswerPatternExpander,
+│   │               NameDisplayResolver     ← 곡명·작곡가명 표시값 계산 (D-074)
 │   │               VideoSummary            ← 서비스가 돌려주는 결과 record (D-070)
 │   └── api/        SongController          (자동완성 목록)
 │
@@ -69,6 +70,8 @@ com.vocaquiz
 ├── daily/                      # Phase 2
 ├── room/                       # Phase 4 (멀티)
 ├── user/                       AppUser, 인증
+│   └── service/    GoogleOidcUserService, AdminEmailWhitelist,
+│                   DisplayPreferenceService  ← 로그인 유저의 D-074 표기법 설정을 읽는다
 └── common/
     ├── config/     SecurityConfig, WebConfig, JacksonConfig, WebSocketConfig,
     │               JpaAuditingConfig
@@ -325,15 +328,15 @@ PATCH  /api/v1/admin/videos/{id}            곡 연결 · kind · 보컬 · 크�
 
 곡
 POST   /api/v1/admin/songs                  이름들 · 곡 언어 · 프로듀서 · 정답 패턴 · status
-GET    /api/v1/admin/songs                  목록. 검색어 · status · 정렬
+GET    /api/v1/admin/songs                  목록. ?q=(정답 패턴 검색, D-056) · ?status= · ?sort=LATEST|OLDEST · ?page= (50개씩, P1-3-5)
 GET    /api/v1/admin/songs/{id}
 PUT    /api/v1/admin/songs/{id}
 POST   /api/v1/admin/answer-patterns/check  { "pattern":"..." } → 전개 결과 · 개수 · 20개 초과 경고 · 문법 오류 줄
 
 참조 목록
 GET    /api/v1/admin/languages
-GET    /api/v1/admin/producers?q=           자동완성
-POST   /api/v1/admin/producers              { "name":"..." } → 같은 이름이면 409 (D-063)
+GET    /api/v1/admin/producers?q=           자동완성. 표시 이름은 D-074(main/sub 표기법)
+POST   /api/v1/admin/producers              이름들(언어별) → 같은 언어에 같은 표기면 409 (D-073)
 GET    /api/v1/admin/vocals
 
 구간 (P1-4)
@@ -345,8 +348,9 @@ DELETE /api/v1/admin/segments/{id}
 - 전부 `role = ADMIN`만 (D-032). 로그인이 없으면 401, 권한이 없으면 403 (D-065).
 - 상태를 바꾸는 요청은 CSRF 토큰(`X-XSRF-TOKEN`)이 있어야 한다 (D-065).
 - videoId는 프론트가 URL에서 뽑는다 (`watch?v=` · `youtu.be/` · `shorts/`). API는 videoId만 받는다.
-- 곡 검색은 검색어를 `TextNormalizer`로 정규화해 `song_answer.normalized`와 부분 일치로 찾는다. 정답 패턴이 없는 곡은 검색되지 않는다. 목록은 최신순 · 오래된순 정렬과 "미작업" 표시(D-062의 빠진 조건)로 보여 준다.
+- 곡 검색은 검색어를 `TextNormalizer`로 정규화해 `song_answer.normalized`와 부분 일치로 찾는다. 정답 패턴이 없는 곡은 검색되지 않는다. 목록은 최신순 · 오래된순 정렬 · 50개 페이지네이션 · "미작업" 사유 목록(D-062의 빠진 조건을 그대로)으로 보여 준다.
 - PUBLISHED로 바꾸는 요청이 조건을 못 채우면 거부하고 빠진 조건 목록을 준다 (D-062).
+- 곡명·프로듀서명의 표시 이름은 D-074(곡명·작곡가명 main/sub 표기법)가 정한다 — 검색 기준(정답 패턴 · 프로듀서 표시 이름)과는 무관하다.
 
 ---
 

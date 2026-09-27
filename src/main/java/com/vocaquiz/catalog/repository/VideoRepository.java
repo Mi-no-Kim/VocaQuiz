@@ -5,6 +5,7 @@ import com.vocaquiz.catalog.domain.VideoCollectionStatus;
 import com.vocaquiz.catalog.domain.VideoKind;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
@@ -37,4 +38,16 @@ public interface VideoRepository extends JpaRepository<Video, Long> {
 
     @EntityGraph(attributePaths = "channel")
     List<Video> findBySongIsNullAndCollectionStatusOrderByIdDesc(VideoCollectionStatus collectionStatus);
+
+    /**
+     * 관리자 곡 목록의 "미작업" 배치 계산 — 수집된 ORIGINAL 영상이 있는 song id만 골라낸다
+     * (D-062 조건 3). 곡마다 {@code existsBySongIdAndKindAndCollectionStatus}를 부르면
+     * N+1이 되어 한 번에 조회한다.
+     */
+    @Query("select distinct v.song.id from Video v "
+        + "where v.song.id in :songIds and v.kind = :kind and v.collectionStatus = :collectionStatus")
+    List<Long> findSongIdsWithCollectedVideo(
+        @org.springframework.data.repository.query.Param("songIds") List<Long> songIds,
+        @org.springframework.data.repository.query.Param("kind") VideoKind kind,
+        @org.springframework.data.repository.query.Param("collectionStatus") VideoCollectionStatus collectionStatus);
 }

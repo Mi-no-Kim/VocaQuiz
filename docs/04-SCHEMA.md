@@ -376,22 +376,27 @@ INDEX (status, created_at)
 
 ## 4. 사용자 / 인증
 
-### app_user ← D-032, D-071
+### app_user ← D-032, D-071, D-074
 
 ```
-id                 bigint  PK
-provider           varchar(20)  NOT NULL    GOOGLE
-provider_user_id   varchar(100) NOT NULL
-email              varchar(200)
-role               varchar(20)  NOT NULL DEFAULT 'USER'    USER | ADMIN
-site_language_id   bigint  FK → language  NOT NULL   ← 표시 언어. 첫 로그인에 English로 채워진다 (D-071)
-created_at         timestamp
+id                          bigint  PK
+provider                    varchar(20)  NOT NULL    GOOGLE
+provider_user_id            varchar(100) NOT NULL
+email                       varchar(200)
+role                        varchar(20)  NOT NULL DEFAULT 'USER'    USER | ADMIN
+site_language_id            bigint  FK → language  NOT NULL   ← UI 언어. 첫 로그인에 English로 채워진다 (D-071)
+song_main_language_id       bigint  FK → language  NOT NULL   ← 곡명 표시 main 표기법 (D-074)
+song_sub_language_id        bigint  FK → language              곡명 표시 sub 표기법. 없을 수 있다 (D-074)
+producer_main_language_id   bigint  FK → language  NOT NULL   ← 작곡가명 표시 main 표기법 (D-074)
+producer_sub_language_id    bigint  FK → language              작곡가명 표시 sub 표기법. 없을 수 있다 (D-074)
+created_at                  timestamp
 UNIQUE (provider, provider_user_id)
 ```
 
 - `/admin/**`은 `role = ADMIN`만 (D-032).
 - 게임 플레이는 로그인 없이 가능. Phase 2 데일리에서만 필수가 된다.
 - 익명 유저의 언어 선택은 서버에 저장하지 않는다. 브라우저(쿠키/localStorage)에만 남는다 (D-071).
+- 곡명·작곡가명 main/sub 표기법(D-074)은 `site_language`와 별개다. main·sub 각각의 초기값·검증(같은 언어 금지)은 D-074 참고. 표시값 계산은 DB가 아니라 `catalog.service.NameDisplayResolver`가 한다.
 
 ---
 

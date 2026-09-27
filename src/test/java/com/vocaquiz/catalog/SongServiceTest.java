@@ -13,7 +13,9 @@ import com.vocaquiz.catalog.repository.SongLanguageRepository;
 import com.vocaquiz.catalog.repository.SongNameRepository;
 import com.vocaquiz.catalog.repository.SongRepository;
 import com.vocaquiz.catalog.repository.VideoRepository;
+import com.vocaquiz.catalog.service.NamePreference;
 import com.vocaquiz.catalog.service.SongDetail;
+import com.vocaquiz.catalog.service.SongListItem;
 import com.vocaquiz.catalog.service.SongNameInput;
 import com.vocaquiz.catalog.service.SongService;
 import com.vocaquiz.catalog.service.SongSummary;
@@ -25,6 +27,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,11 +55,14 @@ class SongServiceTest {
 
     private Long koreanId;
     private Long japaneseId;
+    private NamePreference englishOnly;
 
     @BeforeEach
     void setUp() {
         koreanId = languageRepository.findByCode("KO").orElseThrow().getId();
         japaneseId = languageRepository.findByCode("JA").orElseThrow().getId();
+        Long englishId = languageRepository.findByCode("EN").orElseThrow().getId();
+        englishOnly = new NamePreference(englishId, null);
     }
 
     @Test
@@ -290,5 +297,94 @@ class SongServiceTest {
             List.of(), List.of(), "천본앵", SongStatus.PUBLISHED);
 
         assertThat(detail.status()).isEqualTo(SongStatus.PUBLISHED);
+    }
+
+    @Test
+    @DisplayName("완료 기준 1 (P1-3-5) — 패턴에만 있는 표기(별칭)로 검색해도 그 곡이 나온다")
+    void searchFindsSongByPatternOnlyAlias() {
+        SongSummary summary = songService.create(
+            List.of(new SongNameInput(koreanId, "히토마니아", true)),
+            List.of(), List.of(),
+            "(히토|인간|사람)(마니아|매니아)",
+            SongStatus.DRAFT);
+
+        Page<SongListItem> result = songService.list(
+            "매니아", null, Sort.Direction.DESC, 0, englishOnly);
+
+        assertThat(result.getContent())
+            .extracting(SongListItem::id)
+            .containsExactly(summary.id());
+    }
+
+    @Test
+    @DisplayName("완료 기준 2 (P1-3-5) — 패턴 없는 곡은 검색에 안 잡히고, 정렬 목록에서는 미작업으로 보인다")
+    void songWithoutPatternIsExcludedFromSearchButShownAsUnfinished() {
+        SongSummary withoutPattern = songService.create(
+            List.of(new SongNameInput(koreanId, "패턴없음", true)),
+            List.of(), List.of(), null, SongStatus.DRAFT);
+
+        Page<SongListItem> searched = songService.list(
+            "패턴없음", null, Sort.Direction.DESC, 0, englishOnly);
+        assertThat(searched.getContent()).isEmpty();
+
+        Page<SongListItem> all = songService.list(
+            null, null, Sort.Direction.DESC, 0, englishOnly);
+        SongListItem item = all.getContent().stream()
+            .filter(i -> i.id().equals(withoutPattern.id()))
+            .findFirst().orElseThrow();
+        assertThat(item.missingConditions()).contains("정답 패턴이 없다");
+    }
+
+    @Test
+    @DisplayName("완료 기준 3 (P1-3-5) — status 필터로 DRAFT만, PUBLISHED만 볼 수 있다")
+    void filtersByStatus() {
+        SongSummary draft = songService.create(
+            List.of(new SongNameInput(koreanId, "드래프트곡", true)),
+            List.of(), List.of(), null, SongStatus.DRAFT);
+
+        SongSummary publishReady = songService.create(
+            List.of(new SongNameInput(koreanId, "퍼블리시드곡", true)),
+            List.of(), List.of(), "퍼블리시드곡", SongStatus.DRAFT);
+        Long nameId = songService.get(publishReady.id()).names().get(0).id();
+        Song song = songRepository.findById(publishReady.id()).orElseThrow();
+        videoRepository.save(Video.create(
+            song, null, "abcdefghijk", VideoKind.ORIGINAL, 100, Instant.now(), "제목"));
+        songService.update(
+            publishReady.id(),
+            List.of(new UpdateSongNameInput(nameId, koreanId, "퍼블리시드곡", true)),
+            List.of(), List.of(), "퍼블리시드곡", SongStatus.PUBLISHED);
+
+        Page<SongListItem> draftOnly = songService.list(
+            null, SongStatus.DRAFT, Sort.Direction.DESC, 0, englishOnly);
+        assertThat(draftOnly.getContent())
+            .extracting(SongListItem::id)
+            .contains(draft.id())
+            .doesNotContain(publishReady.id());
+
+        Page<SongListItem> publishedOnly = songService.list(
+            null, SongStatus.PUBLISHED, Sort.Direction.DESC, 0, englishOnly);
+        assertThat(publishedOnly.getContent())
+            .extracting(SongListItem::id)
+            .contains(publishReady.id())
+            .doesNotContain(draft.id());
+    }
+
+    @Test
+    @DisplayName("표시값 D-074 — main 언어(KO)에 이름이 있으면 그 이름을 보여준다")
+    void listUsesMainNotationForDisplayName() {
+        SongSummary summary = songService.create(
+            List.of(
+                new SongNameInput(koreanId, "천본앵", true),
+                new SongNameInput(japaneseId, "千本桜", true)),
+            List.of(), List.of(), null, SongStatus.DRAFT);
+
+        NamePreference koMain = new NamePreference(koreanId, null);
+        Page<SongListItem> result = songService.list(null, null, Sort.Direction.DESC, 0, koMain);
+
+        SongListItem item = result.getContent().stream()
+            .filter(i -> i.id().equals(summary.id()))
+            .findFirst().orElseThrow();
+        assertThat(item.displayName().primary()).isEqualTo("천본앵");
+        assertThat(item.displayName().secondary()).isNull();
     }
 }
